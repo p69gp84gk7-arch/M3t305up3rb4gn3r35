@@ -82,6 +82,20 @@ l'altitude restent en haut. L'onglet ouvert est gardé dans le téléphone.
   (dans « Modèles utilisés » et dans le tableau « Par modèle »). En le touchant, une bulle explique
   simplement ce que montre le bloc, ou d'où vient le modèle, sa précision et sa portée.
 
+## Mode simplifié
+
+Le bouton **Mode simple** en haut à droite affiche seulement l'essentiel pour l'altitude choisie :
+
+- **Maintenant** : production possible OUI ou NON (la majorité des scénarios dit oui pour l'heure en cours),
+  avec la température humide et le vent ;
+- **Prochain démarrage possible** : jour et heure, dernière heure favorable, chances et sûreté de la prévision ;
+- **Les 7 prochains jours** : une grosse réponse par jour, selon les chances d'avoir au moins 4 h de production :
+  **OUI** à 70 % ou plus, **PEUT-ÊTRE** de 40 à 69 %, **NON** en dessous, avec les heures de démarrage → arrêt
+  et la sûreté.
+
+Les onglets sont masqués dans ce mode. Le bouton **Mode complet** (ou « Voir le détail ») les fait revenir.
+Le mode choisi est gardé dans le téléphone. Le calcul suit les seuils et les modèles réglés dans le mode complet.
+
 ## Le calcul
 
 1. **Pression à l'altitude** : `P = 1013,25 × (1 − 2,25577e-5 × altitude)^5,25588` (hPa).

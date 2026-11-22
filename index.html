@@ -162,12 +162,35 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
 
 .empty{text-align:center;padding:28px 10px;margin:14px 0;border:1px dashed var(--line);border-radius:var(--r)}
 @media (min-width:760px){.tabbar{left:50%;right:auto;width:560px;transform:translateX(-50%);border:1px solid var(--line);border-bottom:0;border-radius:16px 16px 0 0}}
+/* Mode simplifié */
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.mode-btn{min-height:40px;padding:6px 14px;border-radius:999px;border:1px solid var(--accent);background:none;color:var(--accent);font-weight:700;font-size:.88rem;white-space:nowrap;margin-top:8px}
+.mode-btn[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+body.simple .tab, body.simple .tabbar{display:none!important}
+body.simple{padding-bottom:env(safe-area-inset-bottom)}
+.s-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin:14px 0;text-align:center}
+.s-card .lab{color:var(--ink2);font-size:.95rem}
+.s-card .big{font-size:2.6rem;font-weight:900;letter-spacing:1px;line-height:1.1;margin:6px 0}
+.s-card .when{font-size:1.5rem;font-weight:800;margin:6px 0 2px}
+.s-card .det{color:var(--ink2);font-size:.95rem}
+.ans-oui{color:#3fc43f} .ans-pe{color:#fab219} .ans-non{color:#ec835a}
+.s-days{list-style:none;margin:0;padding:0}
+.s-days li{display:grid;grid-template-columns:88px 100px 1fr;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--line)}
+.s-days li:first-child{border-top:0}
+.s-days .d{font-weight:700;line-height:1.15}
+.s-days .d small{display:block;font-weight:400;color:var(--muted);font-size:.75rem}
+.s-days .pill{display:block;text-align:center;font-weight:900;font-size:.84rem;padding:9px 2px;border-radius:10px;border:2px solid currentColor}
+.s-days .h{font-size:.95rem;line-height:1.25}
+.s-days .h small{display:block;color:var(--muted);font-size:.78rem}
 .hidden{display:none!important}
 </style>
 </head>
 <body>
 <main>
-  <h1><svg id="logo" class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="44" height="44" aria-hidden="true"><defs><linearGradient id="nsbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a6cb8"/><stop offset="1" stop-color="#0f2236"/></linearGradient></defs><rect width="64" height="64" rx="14" fill="url(#nsbg)"/><g fill="#eef5fd"><circle cx="22" cy="30" r="8"/><circle cx="32.5" cy="23.5" r="11"/><circle cx="43" cy="29.5" r="8.5"/><rect x="14" y="27" width="37.5" height="11" rx="5.5"/></g><path d="M32 45.5L32.0 33.0M32.0 37.8L35.3 34.5M32.0 37.8L28.7 34.5M32 45.5L21.2 39.2M25.3 41.6L24.1 37.2M25.3 41.6L20.8 42.8M32 45.5L21.2 51.8M25.3 49.4L20.8 48.2M25.3 49.4L24.1 53.8M32 45.5L32.0 58.0M32.0 53.2L28.7 56.5M32.0 53.2L35.3 56.5M32 45.5L42.8 51.8M38.7 49.4L39.9 53.8M38.7 49.4L43.2 48.2M32 45.5L42.8 39.2M38.7 41.6L43.2 42.8M38.7 41.6L39.9 37.2" fill="none" stroke="#0f2236" stroke-width="6" stroke-linecap="round"/><path d="M32 45.5L32.0 33.0M32.0 37.8L35.3 34.5M32.0 37.8L28.7 34.5M32 45.5L21.2 39.2M25.3 41.6L24.1 37.2M25.3 41.6L20.8 42.8M32 45.5L21.2 51.8M25.3 49.4L20.8 48.2M25.3 49.4L24.1 53.8M32 45.5L32.0 58.0M32.0 53.2L28.7 56.5M32.0 53.2L35.3 56.5M32 45.5L42.8 51.8M38.7 49.4L39.9 53.8M38.7 49.4L43.2 48.2M32 45.5L42.8 39.2M38.7 41.6L43.2 42.8M38.7 41.6L39.9 37.2" fill="none" stroke="#a9d4ff" stroke-width="2.6" stroke-linecap="round"/></svg><span>Neige SB</span></h1>
+  <div class="top">
+    <h1><svg id="logo" class="logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="44" height="44" aria-hidden="true"><defs><linearGradient id="nsbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a6cb8"/><stop offset="1" stop-color="#0f2236"/></linearGradient></defs><rect width="64" height="64" rx="14" fill="url(#nsbg)"/><g fill="#eef5fd"><circle cx="22" cy="30" r="8"/><circle cx="32.5" cy="23.5" r="11"/><circle cx="43" cy="29.5" r="8.5"/><rect x="14" y="27" width="37.5" height="11" rx="5.5"/></g><path d="M32 45.5L32.0 33.0M32.0 37.8L35.3 34.5M32.0 37.8L28.7 34.5M32 45.5L21.2 39.2M25.3 41.6L24.1 37.2M25.3 41.6L20.8 42.8M32 45.5L21.2 51.8M25.3 49.4L20.8 48.2M25.3 49.4L24.1 53.8M32 45.5L32.0 58.0M32.0 53.2L28.7 56.5M32.0 53.2L35.3 56.5M32 45.5L42.8 51.8M38.7 49.4L39.9 53.8M38.7 49.4L43.2 48.2M32 45.5L42.8 39.2M38.7 41.6L43.2 42.8M38.7 41.6L39.9 37.2" fill="none" stroke="#0f2236" stroke-width="6" stroke-linecap="round"/><path d="M32 45.5L32.0 33.0M32.0 37.8L35.3 34.5M32.0 37.8L28.7 34.5M32 45.5L21.2 39.2M25.3 41.6L24.1 37.2M25.3 41.6L20.8 42.8M32 45.5L21.2 51.8M25.3 49.4L20.8 48.2M25.3 49.4L24.1 53.8M32 45.5L32.0 58.0M32.0 53.2L28.7 56.5M32.0 53.2L35.3 56.5M32 45.5L42.8 51.8M38.7 49.4L39.9 53.8M38.7 49.4L43.2 48.2M32 45.5L42.8 39.2M38.7 41.6L43.2 42.8M38.7 41.6L39.9 37.2" fill="none" stroke="#a9d4ff" stroke-width="2.6" stroke-linecap="round"/></svg><span>Neige SB</span></h1>
+    <button type="button" id="btnMode" class="mode-btn" aria-pressed="false">Mode simple</button>
+  </div>
   <p class="sub">Quand démarrer la production de neige à Superbagnères</p>
 
   <button id="btnCalc" type="button">Calculer</button>
@@ -178,6 +201,19 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
       <h2>Altitude <button type="button" class="info" data-info="alt" aria-label="Explication" aria-expanded="false">i</button></h2>
       <div class="alts" id="alts"></div>
     </section>
+  </div>
+
+  <div id="simple" class="hidden">
+    <p class="empty muted">Appuyez sur « Calculer » pour charger les prévisions.</p>
+    <div class="res hidden">
+      <div id="sNow" class="s-card"></div>
+      <div id="sNext" class="s-card"></div>
+      <section>
+        <h2>Les prochains jours — <span class="altName"></span> <button type="button" class="info" data-info="simple" aria-label="Explication" aria-expanded="false">i</button></h2>
+        <ul id="sDays" class="s-days"></ul>
+      </section>
+      <button type="button" class="more" id="btnFull">Voir le détail (mode complet)</button>
+    </div>
   </div>
 
   <div class="tab" id="tab-resume" role="tabpanel" aria-labelledby="tb-resume">
@@ -763,11 +799,71 @@ function render(){
   if(!results) return;
   document.querySelectorAll(".res").forEach(el => el.classList.remove("hidden"));
   document.querySelectorAll(".empty").forEach(el => el.classList.add("hidden"));
+  renderSimple();
   renderBasis(); renderDays(); renderStarts(); renderChart(); renderSpaghetti(); renderAltTable(); renderModelTable(); renderMissing();
 }
 
 /* Jour par jour : schéma de la pente avec 3 altitudes */
 const DIAG_ALTS = [2000, 1800, 1450];   // du haut vers le bas
+/* ---------- Mode simplifié ---------- */
+const STORE_MODE = "neigeSB.mode";
+const ANS_OUI = 0.7, ANS_PE = 0.4;   // chances d'au moins 4 h dans la journée : OUI dès 70 %, PEUT-ÊTRE dès 40 %
+function answer(p){
+  if(p == null) return {txt:"—", cls:""};
+  return p >= ANS_OUI ? {txt:"OUI", cls:"ans-oui"} : p >= ANS_PE ? {txt:"PEUT-ÊTRE", cls:"ans-pe"} : {txt:"NON", cls:"ans-non"};
+}
+function simpleHours(R, d){
+  const a = d.idx[0], b = d.idx[d.idx.length - 1];
+  const ws = R.windows.filter(w => w.e >= a && w.s <= b);
+  if(!ws.length) return "";
+  const starting = ws.filter(x => x.s >= a);
+  const w = starting[0] || ws[0];                       // de préférence une période qui démarre ce jour-là
+  const others = Math.max(0, starting.length - 1);      // autres périodes qui démarrent aussi ce jour-là
+  const start = w.s >= a ? hourOf(axis[w.s]) + "\u00a0h" : "déjà en route";
+  const endDay = dayKey(axis[w.e]);
+  const end = hourOf(axis[w.e]) + "\u00a0h" + (endDay === d.key ? "" : endDay === dayKey(axis[Math.min(b + 1, axis.length - 1)]) ? " le lendemain" : " " + dayLabel(endDay, true));
+  return `${start} → ${end}` + (others ? `<small>+ ${others} autre${others > 1 ? "s" : ""} démarrage${others > 1 ? "s" : ""} ce jour-là</small>` : "");
+}
+function renderSimple(){
+  const R = results[selAlt];
+  const now = document.getElementById("sNow"), next = document.getElementById("sNext"), list = document.getElementById("sDays");
+  if(!usedModels().length){ now.innerHTML = `<div class="det">${NO_MODEL_TXT}</div>`; next.innerHTML = ""; list.innerHTML = ""; return; }
+  // maintenant : la majorité des scénarios dit-elle oui pour l'heure en cours ?
+  const p0 = R.pct[0], yes = p0 != null && p0 >= 0.5;
+  now.innerHTML = `<div class="lab">Production possible maintenant à ${ALTS[selAlt].alt} m ?</div>
+    <div class="big ${p0 == null ? "" : yes ? "ans-oui" : "ans-non"}">${p0 == null ? "—" : yes ? "OUI" : "NON"}</div>
+    <div class="det">Température humide ${temp(R.Tw[0])} · vent ${num(R.W[0], 0)}\u00a0km/h · ${pctTxt(p0)} de chances</div>`;
+  // prochain démarrage
+  const w = R.windows[0];
+  if(w){
+    const di = days.findIndex(d => d.key === dayKey(axis[w.s]));
+    next.innerHTML = `<div class="lab">Prochain démarrage possible</div>
+      <div class="when">${cap(whenTxt(axis[w.s]))}</div>
+      <div class="det">jusqu'à ${whenTxt(axis[w.e])} · ${pctTxt(w.peak)} de chances</div>
+      <div style="margin-top:8px">${confTag(R.dayConf[di], true)}</div>`;
+  } else {
+    let last = -1; R.pct.forEach((p, i) => { if(p != null) last = i; });
+    next.innerHTML = `<div class="lab">Prochain démarrage possible</div><div class="when ans-non">Aucun</div>
+      <div class="det">${last >= 0 ? "pas de période favorable jusqu'à " + whenTxt(axis[last]) : ""}</div>`;
+  }
+  // les 7 prochains jours
+  list.innerHTML = days.slice(0, FIRST_DAYS).map((d, di) => {
+    const a = answer(R.dayPct[di]), c = R.dayConf[di], l = c && confLevel(c.agree, c.spread);
+    const h = a.txt === "NON" || a.txt === "—" ? "" : simpleHours(R, d);
+    return `<li><span class="d">${cap(dayLabel(d.key))}${d.key === todayKey || d.key === tomorrowKey ? `<small>${dayLabel(d.key, true)}</small>` : ""}</span>
+      <span class="pill ${a.cls}">${a.txt}</span>
+      <span class="h">${h || `<span class="muted">${a.txt === "PEUT-ÊTRE" ? "heures incertaines" : "—"}</span>`}<small>${l ? `<span style="color:${l.col}">${l.ico} prévision ${l.txt}</span>` : ""}</small></span></li>`;
+  }).join("");
+}
+function setMode(simple){
+  document.body.classList.toggle("simple", simple);
+  document.getElementById("simple").classList.toggle("hidden", !simple);
+  const b = document.getElementById("btnMode");
+  b.setAttribute("aria-pressed", simple); b.textContent = simple ? "Mode complet" : "Mode simple";
+  saveJSON(STORE_MODE, simple ? "simple" : "complet");
+  closeBubble();
+}
+
 function daySegments(R, d){
   const a = d.idx[0], b = d.idx[d.idx.length - 1];
   return R.windows.filter(w => w.e >= a && w.s <= b).map(w => {
@@ -1219,6 +1315,11 @@ const INFO = {
     % de scénarios avec au moins 4 h de production, et en petit les heures où la majorité dit oui.</li><li><b>Déterministes</b> :
     nombre d'heures de production prévues, et lesquelles. « — » : le modèle ne va pas jusque-là.</li></ul><p>✓ vert : modèle
     utilisé dans le calcul. Touchez le « i » d'un modèle pour sa description.</p>`],
+  simple: ["Mode simplifié", `<p>Pour chaque jour, la réponse dépend des chances d'avoir au moins 4 h de production dans la
+    journée, à l'altitude choisie :</p><ul><li><b class="ans-oui">OUI</b> : 70 % de chances ou plus ;</li><li><b class="ans-pe">PEUT-ÊTRE</b> :
+    de 40 à 69 % ;</li><li><b class="ans-non">NON</b> : moins de 40 %.</li></ul><p>Les heures indiquent la période où la majorité des
+    scénarios dit oui (démarrage → dernière heure favorable). En dessous : la sûreté de la prévision.</p><p>Le calcul suit les seuils et les
+    modèles choisis dans le mode complet (onglet Réglages).</p>`],
   missing: ["Modèles indisponibles", `<p>Modèles qui n'ont pas répondu à ce calcul : panne du service, quota gratuit dépassé
     (10 000 demandes par jour et par connexion) ou pas de données pour Superbagnères. Les autres modèles sont utilisés normalement.
     Réessayez plus tard.</p>`]
@@ -1382,6 +1483,9 @@ document.getElementById("btnReset").addEventListener("click", () => { Object.ass
 setupHomeIcon();
 syncInputs();
 showTab(loadJSON(STORE_TAB) || "resume");
+setMode(loadJSON(STORE_MODE) === "simple");
+document.getElementById("btnMode").addEventListener("click", () => { setMode(!document.body.classList.contains("simple")); scrollTo({top: 0}); });
+document.getElementById("btnFull").addEventListener("click", () => { setMode(false); showTab("resume", true); });
 render();
 </script>
 </body>

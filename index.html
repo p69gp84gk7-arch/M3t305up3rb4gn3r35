@@ -128,6 +128,10 @@ footer a{color:var(--ink2)}
 .seg-ctl button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
 #spagInfo{margin-top:8px;font-size:.92rem;min-height:2.8em;color:var(--ink2)}
 .more{width:100%;min-height:48px;margin-top:10px;border-radius:12px;border:1px dashed var(--line);background:none;color:var(--accent);font-weight:600}
+/* Sûreté de la prévision */
+.conf{display:inline-block;font-size:.75rem;font-weight:700;padding:1px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
+.conf-ok{color:#3fc43f} .conf-mid{color:#fab219} .conf-bad{color:#ec835a} .conf-na{color:var(--muted);font-weight:400}
+.day-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
 .hidden{display:none!important}
 </style>
 </head>
@@ -270,6 +274,13 @@ footer a{color:var(--ink2)}
         ceux qui restent.</p>
       <p><b>Températures affichées.</b> Ce sont des valeurs typiques : la valeur du milieu de tous les scénarios. Au démarrage d'une
         fenêtre, elle peut donc être un peu au-dessus du seuil alors que la moitié des scénarios est déjà assez froide.</p>
+      <p><b>Sûreté de la prévision.</b> Une prévision est <span class="conf conf-ok">✔ sûre</span> quand les scénarios sont
+        d'accord entre eux : au moins 9 sur 10 disent la même chose (oui ou non) et 8 scénarios sur 10 sont dans un écart de
+        température humide de 3 °C au plus. Elle est <span class="conf conf-bad">? incertaine</span> si les scénarios se partagent
+        presque moitié-moitié (moins de 3 sur 4 d'accord) ou si l'écart dépasse 6 °C. Entre les deux, elle est
+        <span class="conf conf-mid">~ moyenne</span>. Dans le diagramme des scénarios, la zone de sûreté (bande claire) contient
+        8 scénarios sur 10 : plus elle est étroite, plus le modèle est sûr. Avec un seul scénario (modèle déterministe seul),
+        la sûreté ne peut pas être calculée.</p>
       <p><b>5. Les démarrages.</b> Une fenêtre commence à la première heure où au moins la moitié des scénarios disent oui, et
         s'arrête à la dernière heure où c'est encore le cas. On ne garde que les fenêtres d'au moins 3 heures.</p>
       <p><b>6. Les modèles fins.</b> Pour les 48 prochaines heures, on ajoute l'avis des modèles à maille fine, plus précis en
@@ -553,6 +564,35 @@ async function calculate(){
 }
 function setStatus(txt, err){ const s = document.getElementById("status"); s.textContent = txt; s.classList.toggle("err", !!err); }
 
+/* ---------- Sûreté de la prévision ---------- */
+// accord = |2p − 1| : 1 quand tous les scénarios disent la même chose, 0 à 50/50.
+// écart  = écart de température humide entre le 1er et le 9e dixième des scénarios (8 sur 10 sont dedans).
+const CONF = {
+  ok:  {ico:"✔", txt:"sûre",       short:"sûr",       cls:"conf-ok",  col:"#3fc43f"},
+  mid: {ico:"~", txt:"moyenne",    short:"moyen",     cls:"conf-mid", col:"#fab219"},
+  bad: {ico:"?", txt:"incertaine", short:"incertain", cls:"conf-bad", col:"#ec835a"}
+};
+const CONF_SURE = {agree:0.8, spread:3}, CONF_UNSURE = {agree:0.5, spread:6};
+function quant(v, q){ const pos = (v.length - 1) * q, i = Math.floor(pos), f = pos - i; return v[i] + (i + 1 < v.length ? (v[i+1] - v[i]) * f : 0); }
+function spreadOf(vals){ if(vals.length < 5) return null; const v = vals.slice().sort((a, b) => a - b); return quant(v, 0.9) - quant(v, 0.1); }
+function confLevel(agree, spread){
+  if(agree == null || spread == null) return null;
+  if(agree >= CONF_SURE.agree && spread <= CONF_SURE.spread) return CONF.ok;
+  if(agree < CONF_UNSURE.agree || spread > CONF_UNSURE.spread) return CONF.bad;
+  return CONF.mid;
+}
+function dayConfOf(d, agree, spread){
+  const a = [], s = [];
+  d.idx.forEach(i => { if(agree[i] != null && spread[i] != null){ a.push(agree[i]); s.push(spread[i]); } });
+  if(a.length < 3) return null;
+  return {agree: mean(a), spread: mean(s)};
+}
+function confTag(c, long){
+  if(!c) return `<span class="conf conf-na">sûreté non calculable</span>`;
+  const l = confLevel(c.agree, c.spread);
+  return `<span class="conf ${l.cls}" title="accord ${Math.round(c.agree*100)} %, écart ${num(c.spread)} °C">${l.ico} ${long ? "prévision " + l.txt : l.short}</span>`;
+}
+
 /* ---------- Analyse ---------- */
 function median(a){ if(!a.length) return null; const s = a.slice().sort((x,y) => x-y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m-1] + s[m]) / 2; }
 function mean(a){ const v = a.filter(x => x != null); return v.length ? v.reduce((s,x) => s+x, 0) / v.length : null; }
@@ -620,7 +660,14 @@ function analyse(){
         s = -1;
       }
     }
-    return {pct, T, Tw, W, dayPct, windows};
+    const pool = Array.from({length: H}, () => []);
+    ens.forEach(m => { const p = m.points[ai];
+      p.time.forEach((t, j) => { const h = axisIdx.get(t); if(h === undefined) return;
+        p.members.forEach(mb => { if(mb.tw[j] != null) pool[h].push(mb.tw[j]); }); }); });
+    const spread = pool.map(spreadOf);
+    const agree = pct.map(p => p == null ? null : Math.abs(2 * p - 1));
+    const dayConf = days.map(d => dayConfOf(d, agree, spread));
+    return {pct, T, Tw, W, dayPct, windows, spread, agree, dayConf};
   });
 }
 
@@ -702,7 +749,9 @@ function renderDays(){
       rows.push(`<li><span class="a">${DIAG_ALTS[k]}\u00a0m</span><span class="p" style="background:${b ? b.c : "transparent"};color:${b ? b.ink : "var(--muted)"}">${pctTxt(p)}</span><span class="t">${t}</span></li>`);
     });
     const label = cap(dayLabel(d.key)) + (d.key === todayKey || d.key === tomorrowKey ? ` <small>${dayLabel(d.key, true)}</small>` : "");
-    return `<div class="day"><div class="day-h">${label}${d.key === todayKey ? ` <small>(heures restantes)</small>` : ""}</div>
+    const cs = idxs.map(ai => results[ai].dayConf[di]).filter(Boolean);
+    const conf = cs.length ? {agree: mean(cs.map(c => c.agree)), spread: mean(cs.map(c => c.spread))} : null;
+    return `<div class="day"><div class="day-h"><span>${label}${d.key === todayKey ? ` <small>(heures restantes)</small>` : ""}</span>${confTag(conf, true)}</div>
       <div class="day-b">${slopeSVG(cols)}<ul class="day-l">${rows.join("")}</ul></div></div>`;
   }).join("");
 }
@@ -877,7 +926,7 @@ const spag = {model:"gfs_seamless", v:"tw"};
   if(s && s.model === "gfs025") s.model = "gfs_seamless";
   if(s && ENS_MODELS.some(m => m.id === s.model)) spag.model = s.model;
   if(s && SPAG_VARS.some(v => v.id === s.v)) spag.v = s.v; })();
-const SP = {top:24, plot:150};
+const SP = {top:38, plot:150};
 let spagData = null;
 function seriesOf(m, ai, v){
   // valeurs alignées sur l'axe horaire, une série par scénario
@@ -904,18 +953,21 @@ function renderSpaghetti(){
   const mainDet = models.find(x => x.kind === "det" && x.id === SPAG_MAIN[m.id]);
   const main = mainDet ? seriesOf(mainDet, selAlt, spag.v)[0] : null;
   const med = new Array(H).fill(null), lo = new Array(H).fill(null), hi = new Array(H).fill(null);
+  const q10 = new Array(H).fill(null), q90 = new Array(H).fill(null);
   let vmin = Infinity, vmax = -Infinity;
   for(let h = 0; h < H; h++){
     const vals = series.map(s => s[h]).filter(x => x != null);
     if(!vals.length) continue;
     med[h] = median(vals); lo[h] = Math.min(...vals); hi[h] = Math.max(...vals);
+    const sv = vals.slice().sort((a, b) => a - b); q10[h] = quant(sv, 0.1); q90[h] = quant(sv, 0.9);
     vmin = Math.min(vmin, lo[h]); vmax = Math.max(vmax, hi[h]);
   }
   const thr = spag.v === "tw" ? settings.tw : spag.v === "w" ? settings.wind : 0;
   if(!isFinite(vmin)){ vmin = thr - 5; vmax = thr + 5; }
   vmin = Math.min(vmin, thr); vmax = Math.max(vmax, thr);
   if(spag.v === "w") vmin = 0;
-  const st = V.step;
+  // pas des graduations : au plus 8 traits, quel que soit l'écart de valeurs
+  const st = [V.step, V.step * 2.5, V.step * 5, V.step * 10].find(x => (vmax - vmin) / x <= 8) || V.step * 10;
   vmin = Math.floor(vmin / st) * st; vmax = Math.ceil(vmax / st) * st;
   if(vmax - vmin < 2 * st) vmax = vmin + 2 * st;
   const W = H * CH.step + 4, y0 = SP.top + SP.plot, stripY = y0 + 8, hTxtY = stripY + 22, Ht = hTxtY + 6;
@@ -927,17 +979,36 @@ function renderSpaghetti(){
   let s = "";
   for(let v = vmin; v <= vmax + 1e-9; v += st)
     s += `<line x1="0" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="#223040"/>`;
-  days.forEach(d => {
+  // sûreté du modèle affiché, jour par jour (toujours sur la température humide, qui décide de la production)
+  const twSpread = new Array(H).fill(null);
+  const twSeries = spag.v === "tw" ? series : seriesOf(m, selAlt, "tw");
+  for(let h = 0; h < H; h++) twSpread[h] = spreadOf(twSeries.map(x => x[h]).filter(x => x != null));
+  const mAgree = m.res[selAlt].frac.map(p => p == null ? null : Math.abs(2 * p - 1));
+  const mConf = days.map(d => dayConfOf(d, mAgree, twSpread));
+  days.forEach((d, di) => {
     const x = d.idx[0] * CH.step;
     s += `<line x1="${x+0.5}" x2="${x+0.5}" y1="4" y2="${Ht}" stroke="#2a3846"/>`;
-    if(d.idx.length >= 4) s += `<text x="${x+4}" y="15" fill="#b3c1d0" font-size="12" font-weight="600">${dayLabel(d.key, true)}</text>`;
+    if(d.idx.length >= 4) s += `<text x="${x+4}" y="14" fill="#b3c1d0" font-size="12" font-weight="600">${dayLabel(d.key, true)}</text>`;
+    const c = mConf[di], l = c && confLevel(c.agree, c.spread);
+    if(l && d.idx.length >= 6) s += `<text x="${x+4}" y="29" fill="${l.col}" font-size="10.5" font-weight="700">${l.ico} ${l.short}</text>`;
   });
   for(let i = 0; i < H; i++){
     const hr = hourOf(axis[i]);
     if(hr % 6 === 0 && hr !== 0) s += `<text x="${xc(i)}" y="${hTxtY}" fill="#8597ab" font-size="10" text-anchor="middle">${hr}h</text>`;
   }
+  // zone de sûreté : bande où se trouvent 8 scénarios sur 10
+  let band = "";
+  for(let i = 0; i < H; ){
+    if(q10[i] == null){ i++; continue; }
+    let j = i; while(j + 1 < H && q10[j+1] != null) j++;
+    const up = [], dn = [];
+    for(let k = i; k <= j; k++){ up.push(xc(k).toFixed(1) + "," + y(q90[k]).toFixed(1)); dn.unshift(xc(k).toFixed(1) + "," + y(q10[k]).toFixed(1)); }
+    band += `<polygon points="${up.concat(dn).join(" ")}"/>`;
+    i = j + 1;
+  }
+  s += `<g fill="#6da7ec" fill-opacity=".3" stroke="none">${band}</g>`;
   // scénarios, puis seuil, run principal et médiane par-dessus
-  s += `<g fill="none" stroke="#6da7ec" stroke-opacity=".38" stroke-width="1">` + series.map(a => `<path d="${path(a)}"/>`).join("") + `</g>`;
+  s += `<g fill="none" stroke="#6da7ec" stroke-opacity=".28" stroke-width="1">` + series.map(a => `<path d="${path(a)}"/>`).join("") + `</g>`;
   s += `<line x1="0" x2="${W}" y1="${y(thr)}" y2="${y(thr)}" stroke="#fab219" stroke-width="1.5" stroke-dasharray="5 4"/>`;
   if(main) s += `<path d="${path(main)}" fill="none" stroke="#c9a7ff" stroke-width="2"/>`;
   s += `<path d="${path(med)}" fill="none" stroke="#e8eef5" stroke-width="2.5"/>`;
@@ -958,10 +1029,11 @@ function renderSpaghetti(){
   document.getElementById("spagLegend").innerHTML =
     `<span><i style="background:#6da7ec;opacity:.6;height:2px;vertical-align:4px"></i>${series.length} scénarios</span>` +
     `<span><i style="background:#e8eef5;height:3px;vertical-align:4px"></i>médiane</span>` +
+    `<span><i style="background:rgba(109,167,236,.35);height:10px;vertical-align:-1px"></i>zone de sûreté : 8 scénarios sur 10 (étroite = modèle sûr)</span>` +
     (main ? `<span><i style="background:#c9a7ff;height:3px;vertical-align:4px"></i>run principal (${esc(mainDet.label)})</span>` : "") +
     `<span><i style="background:none;border-top:2px dashed #fab219;height:0;border-radius:0;vertical-align:3px"></i>${thrLab}</span>` +
     `<span><i style="background:var(--s3);height:7px;vertical-align:1px"></i>bande du bas : part des scénarios qui disent oui</span>`;
-  spagData = {series, med, lo, hi, main, mainDet, frac, V};
+  spagData = {series, med, lo, hi, q10, q90, main, mainDet, frac, V, mConf};
   document.getElementById("spagSvg").addEventListener("click", ev => { const i = ev.target.getAttribute("data-i"); if(i != null) showSpag(+i); });
   document.getElementById("spagSvg").addEventListener("pointermove", ev => { if(ev.pointerType === "mouse"){ const i = ev.target.getAttribute("data-i"); if(i != null) showSpag(+i); } });
   const R = results[selAlt], first = R && R.windows.length ? R.windows[0].s : 0;
@@ -973,7 +1045,9 @@ function showSpag(i){
   const sel = document.getElementById("spSel"); if(sel) sel.setAttribute("x", i * CH.step);
   const f = v => d.V.id === "w" ? num(v, 0) + "\u00a0km/h" : temp(v);
   if(d.med[i] == null){ document.getElementById("spagInfo").innerHTML = `<b>${cap(whenTxt(axis[i]))}</b> — pas de donnée pour ce modèle`; return; }
+  const dc = d.mConf[days.findIndex(x => x.key === dayKey(axis[i]))];
   document.getElementById("spagInfo").innerHTML = `<b>${cap(whenTxt(axis[i]))}</b> — médiane ${f(d.med[i])} (de ${f(d.lo[i])} à ${f(d.hi[i])})<br>` +
+    `8 scénarios sur 10 entre ${f(d.q10[i])} et ${f(d.q90[i])} · ce jour-là ${confTag(dc, true)}<br>` +
     `${pctTxt(d.frac[i])} des scénarios disent « production possible »` +
     (d.main && d.main[i] != null ? ` · run principal ${f(d.main[i])}` : "");
 }

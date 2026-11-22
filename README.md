@@ -2,7 +2,7 @@
 
 Page web à utiliser surtout sur téléphone. Elle indique, pour chaque altitude du domaine
 (1450 m bas de station, 1800 m front de neige, 1900, 2000, 2100 et 2200 m), quand la production de neige
-sera possible dans les 7 prochains jours.
+sera possible dans les 16 prochains jours (comme les diagrammes d'ensemble de Meteociel).
 
 - Un seul fichier `index.html` (HTML + CSS + JavaScript), sans compilation.
 - Les prévisions viennent en direct d'[Open-Meteo](https://open-meteo.com/) (gratuit, sans clé)
@@ -80,7 +80,9 @@ La page s'ouvre alors comme une application. Il faut une connexion internet pour
 
 Les coordonnées de chaque point sont envoyées avec le paramètre `elevation`, qui corrige
 la prévision pour l'altitude exacte. Les 6 points partent dans le même appel.
-Fuseau horaire Europe/Paris, vent en km/h, 7 jours de prévision.
+Fuseau horaire Europe/Paris, vent en km/h, 16 jours de prévision (moins pour les modèles qui
+vont moins loin). Les 7 premiers jours sont affichés d'office ; les jours 8 à 16, moins sûrs,
+s'ouvrent avec un bouton « Voir les jours 8 à 16 ».
 
 ## Points utilisés
 
@@ -108,40 +110,45 @@ La page garde seulement ceux qui renvoient des données au point 1800 m et affic
 
 ### Modèles d'ensemble (pourcentages de chances)
 
-API `https://ensemble-api.open-meteo.com/v1/ensemble`. Tous testés le 22/11/2026 sur les points d'altitude.
+API `https://ensemble-api.open-meteo.com/v1/ensemble`. Tous testés le 22/11/2026 sur les points d'altitude,
+avec 16 jours demandés à partir de minuit (384 h au maximum).
 
-| Modèle | Code | Membres | Portée |
+| Modèle | Code | Membres | Portée mesurée |
 |---|---|---|---|
-| ECMWF | `ecmwf_ifs025` | 51 | 168 h (7 j demandés) |
-| ECMWF IA | `ecmwf_aifs025` | 51 | 168 h |
-| GFS (États-Unis) | `gfs025` | 31 | 168 h |
-| ICON (Allemagne) | `icon_seamless_eps` | 40 | 168 h |
-| GEM (Canada) | `gem_global` | 21 | 168 h |
-| UKMO (Royaume-Uni) | `ukmo_global_ensemble_20km` | 18 | 168 h |
+| ECMWF | `ecmwf_ifs025` | 51 | 364 h (15 j) |
+| ECMWF IA | `ecmwf_aifs025` | 51 | 373 h (15 j) |
+| GFS (États-Unis) | `gfs_seamless` | 31 | 384 h (16 j) |
+| ICON (Allemagne) | `icon_seamless_eps` | 40 | 182 h (7,5 j) |
+| GEM (Canada) | `gem_global` | 21 | 384 h (16 j) |
+| UKMO (Royaume-Uni) | `ukmo_global_ensemble_20km` | 18 | 248 h (10 j) |
+
+Pour le GFS, `gfs_seamless` remplace `gfs025` : ce sont les mêmes 31 scénarios (30 + 1 de contrôle,
+comme le diagramme GEFS de Meteociel), à 0,25° jusqu'à 10 jours puis à 0,5° jusqu'à 16 jours.
+`gfs025` seul s'arrête à 10 jours (250 h).
 
 ### Modèles déterministes (précision à court terme)
 
 API `https://api.open-meteo.com/v1/forecast`. Testés le 22/11/2026 sur le point 1800 m, avec
-7 jours demandés à partir de minuit (168 h au maximum). La portée dépend de l'heure du dernier
+16 jours demandés à partir de minuit (384 h au maximum). La portée dépend de l'heure du dernier
 calcul du modèle et varie donc de quelques heures d'un jour à l'autre.
 
 | Modèle | Code | Maille | Portée mesurée | Dans les fenêtres 48 h |
 |---|---|---|---|---|
 | AROME HD (prioritaire) | `meteofrance_arome_france_hd` | 1,5 km | 62 h | oui ★ |
-| AROME | `meteofrance_arome_france` | 2,5 km | 59 h | oui |
+| AROME | `meteofrance_arome_france` | 2,5 km | 62 h | oui |
 | HARMONIE (Danemark) | `dmi_harmonie_arome_europe` | 2 km | 70 h | oui |
-| HARMONIE (Pays-Bas) | `knmi_harmonie_arome_europe` | 5,5 km | 72 h | oui |
+| HARMONIE (Pays-Bas) | `knmi_harmonie_arome_europe` | 5,5 km | 73 h | oui |
 | ICON-EU | `icon_eu` | 7 km | 128 h | oui |
 | ARPEGE | `meteofrance_arpege_europe` | 10 km | 110 h | oui |
-| UKMO | `ukmo_global_deterministic_10km` | 10 km | 168 h | oui |
+| UKMO | `ukmo_global_deterministic_10km` | 10 km | 170 h | oui |
 | Météo-France (mixte) | `meteofrance_seamless` | 1,5 à 25 km | 110 h | non |
-| ECMWF | `ecmwf_ifs025` | 25 km | 168 h | non |
-| ECMWF IA | `ecmwf_aifs025_single` | 25 km | 168 h | non |
-| ICON | `icon_global` | 13 km | 168 h | non |
-| GFS | `gfs_global` | 13 km | 168 h | non |
-| GEM | `gem_global` | 15 km | 168 h | non |
-| JMA (Japon) | `jma_gsm` | 55 km | 168 h | non |
-| CMA (Chine) | `cma_grapes_global` | 15 km | 124 h | non |
+| ECMWF | `ecmwf_ifs025` | 25 km | 364 h | non |
+| ECMWF IA | `ecmwf_aifs025_single` | 25 km | 373 h | non |
+| ICON | `icon_global` | 13 km | 182 h | non |
+| GFS | `gfs_global` | 13 km | 384 h | non |
+| GEM | `gem_global` | 15 km | 242 h | non |
+| JMA (Japon) | `jma_gsm` | 55 km | 271 h | non |
+| CMA (Chine) | `cma_grapes_global` | 15 km | 130 h | non |
 
 Cas particuliers constatés le 22/11/2026 :
 
@@ -156,6 +163,8 @@ Cas particuliers constatés le 22/11/2026 :
 - Open-Meteo gratuit autorise 10 000 appels par jour et par adresse internet. Chaque appui sur
   **Calculer** fait 23 appels (les 6 altitudes partent ensemble dans chaque appel) : pas de souci pour un usage normal depuis un téléphone.
   Si le quota est dépassé, les modèles concernés apparaissent dans « Modèles indisponibles ».
+- Avec 16 jours, un calcul télécharge environ 8 Mo (surtout les ensembles ECMWF et ICON) :
+  préférer le wifi ou une bonne couverture 4G.
 - C'est une aide à la décision : les mesures sur place (sonde, hygromètre, anémomètre) restent la référence.
 
 Données météo : [Open-Meteo.com](https://open-meteo.com/), licence CC BY 4.0.

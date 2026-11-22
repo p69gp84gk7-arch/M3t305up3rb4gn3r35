@@ -37,6 +37,10 @@ La page s'ouvre alors comme une application. Il faut une connexion internet pour
   coloré selon les chances d'avoir au moins 4 h de production, et les heures théoriques de
   démarrage → arrêt à chaque altitude (« veille » quand la production a commencé la veille,
   « lendemain » quand elle s'arrête le lendemain).
+- **Modèles utilisés** : choix des modèles pris en compte dans tous les résultats. On peut choisir
+  un seul modèle ou en cocher plusieurs : la page fait alors la moyenne, chaque modèle comptant
+  autant. Des choix tout prêts sont proposés : Ensembles (par défaut), Météo-France
+  (AROME HD, AROME, ARPEGE), Modèles fins, Tous, Aucun. Le choix est gardé dans le téléphone.
 - **Démarrages possibles** : les périodes d'au moins 3 h où la majorité des scénarios météo
   disent « production possible », avec l'heure de démarrage et la dernière heure favorable,
   les chances au plus haut, la température de l'air et la température humide au démarrage et
@@ -60,8 +64,10 @@ La page s'ouvre alors comme une application. Il faut une connexion internet pour
    Les deux seuils se règlent dans la page.
 4. **Niveaux** : de −2,5 à −3 °C = limite ; −3 °C ou moins = production ; −6 °C ou moins = excellent.
 5. **Pourcentage de chances** : pour chaque heure, part des membres (scénarios) de chaque
-   modèle d'ensemble qui disent « production possible », puis moyenne entre modèles
-   (chaque modèle compte autant, quel que soit son nombre de membres).
+   modèle choisi qui disent « production possible », puis moyenne entre les modèles choisis
+   (chaque modèle compte autant, quel que soit son nombre de membres). Par défaut, ce sont les
+   6 modèles d'ensemble. Un modèle déterministe compte comme un modèle avec un seul scénario
+   (0 % ou 100 %). Au-delà de la portée d'un modèle, la moyenne continue avec les autres.
 6. **Fenêtres** : de la première à la dernière heure où au moins 50 % des scénarios disent oui,
    seulement si elles durent au moins 3 h.
 7. **Tableau par jour** : part des scénarios qui ont au moins 4 h de production dans la journée

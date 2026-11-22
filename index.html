@@ -109,6 +109,19 @@ footer a{color:var(--ink2)}
 .day-l .t small{color:var(--muted)}
 .day-l .seg{display:block}
 .day-l .nw{white-space:nowrap}
+/* Choix des modèles */
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 4px}
+.presets button{min-height:40px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card2);font-size:.88rem}
+.mgroup-t{font-size:.82rem;color:var(--muted);margin:12px 0 6px}
+.chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.chips button{min-height:48px;text-align:left;border-radius:10px;border:1px solid var(--line);background:var(--card2);padding:6px 10px 6px 34px;position:relative;line-height:1.2;font-size:.9rem}
+.chips button::before{content:"";position:absolute;left:10px;top:50%;width:16px;height:16px;margin-top:-8px;border-radius:4px;border:2px solid var(--muted)}
+.chips button[aria-pressed="true"]{border-color:var(--accent);background:#1a2c42}
+.chips button[aria-pressed="true"]::before{background:var(--accent);border-color:var(--accent);content:"✓";color:var(--accent-ink);font-size:12px;font-weight:800;text-align:center;line-height:16px}
+.chips button small{display:block;color:var(--muted);font-size:.72rem;margin-top:1px}
+.chips button.off{opacity:.55}
+#basis{margin:0 2px 4px}
+.used{color:var(--good);font-weight:800}
 .hidden{display:none!important}
 </style>
 </head>
@@ -148,7 +161,21 @@ footer a{color:var(--ink2)}
     </details>
   </section>
 
+  <section>
+    <details id="modelsBox">
+      <summary>Modèles utilisés <span id="modelsSum" class="small muted" style="font-weight:400"></span></summary>
+      <p class="small muted" style="margin:8px 0 0">Touchez un modèle pour l'ajouter ou l'enlever. Avec plusieurs modèles, la page fait
+        la moyenne : chaque modèle compte autant. Tous les résultats ci-dessous suivent ce choix.</p>
+      <div class="presets" id="presets"></div>
+      <div class="mgroup-t">Ensembles : plusieurs scénarios chacun, donnent de vrais pourcentages</div>
+      <div class="chips" id="chipsEns"></div>
+      <div class="mgroup-t">Modèles déterministes : un seul scénario chacun (oui ou non)</div>
+      <div class="chips" id="chipsDet"></div>
+    </details>
+  </section>
+
   <div id="results" class="hidden">
+    <div id="basis" class="small ink2"></div>
     <section id="secDays">
       <h2>Jour par jour — 1450, 1800 et 2000 m</h2>
       <div class="small muted" style="margin-bottom:8px">Chances d'avoir au moins 4 h de production dans la journée, et heures
@@ -214,6 +241,11 @@ footer a{color:var(--ink2)}
       <p><b>4. Les chances en %.</b> Plusieurs centres météo (européen, américain, allemand, canadien, britannique…) font
         chacun des dizaines de prévisions légèrement différentes, appelées « scénarios ». Pour chaque heure, on regarde la part
         des scénarios qui disent « production possible ». Chaque centre compte autant, quel que soit son nombre de scénarios.</p>
+      <p><b>Choix des modèles.</b> Par défaut, la page fait la moyenne des modèles d'ensemble. Dans « Modèles utilisés », vous
+        pouvez choisir un seul modèle ou en mélanger plusieurs : la page fait alors la moyenne des modèles cochés, chacun comptant
+        autant. Un modèle déterministe (comme AROME HD) ne donne qu'un scénario : seul, il donne 0 % ou 100 %. Dans une moyenne,
+        il compte comme un modèle d'ensemble. Au-delà de la portée d'un modèle (48 h pour AROME HD), la moyenne continue avec
+        ceux qui restent.</p>
       <p><b>Températures affichées.</b> Ce sont des valeurs typiques : la valeur du milieu de tous les scénarios. Au démarrage d'une
         fenêtre, elle peut donc être un peu au-dessus du seuil alors que la moitié des scénarios est déjà assez froide.</p>
       <p><b>5. Les démarrages.</b> Une fenêtre commence à la première heure où au moins la moitié des scénarios disent oui, et
@@ -275,6 +307,17 @@ const DET_MODELS = [
 const DEFAULTS = {tw:-2.5, wind:15};
 const MIN_WINDOW_H = 3, DAY_MIN_H = 4, FINE_HORIZON_H = 48;
 const STORE_KEY = "neigeSB.reglages";
+const STORE_MODELS = "neigeSB.modeles";
+const mkey = (kind, id) => kind + ":" + id;
+const ALL_KEYS = [...ENS_MODELS.map(m => mkey("ens", m.id)), ...DET_MODELS.map(m => mkey("det", m.id))];
+const DEFAULT_SEL = ENS_MODELS.map(m => mkey("ens", m.id));
+const PRESETS = [
+  {label:"Ensembles (par défaut)", keys: DEFAULT_SEL},
+  {label:"Météo-France", keys: ["meteofrance_arome_france_hd", "meteofrance_arome_france", "meteofrance_arpege_europe"].map(id => mkey("det", id))},
+  {label:"Modèles fins", keys: DET_MODELS.filter(d => d.fine).map(d => mkey("det", d.id))},
+  {label:"Tous", keys: ALL_KEYS},
+  {label:"Aucun", keys: []}
+];
 const STORE_ALT = "neigeSB.alt";   // altitude choisie, en mètres
 const REF_ALT = 1800;               // point de contrôle des modèles (front de neige)
 
@@ -286,6 +329,9 @@ const settings = Object.assign({}, DEFAULTS);
   if(s && isFinite(s.tw)) settings.tw = +s.tw;
   if(s && isFinite(s.wind)) settings.wind = +s.wind; })();
 const REF_IDX = ALTS.findIndex(a => a.alt === REF_ALT);
+let selModels = new Set(DEFAULT_SEL);
+(function(){ const a = loadJSON(STORE_MODELS);
+  if(Array.isArray(a)) selModels = new Set(a.filter(k => ALL_KEYS.includes(k))); })();
 let selAlt = REF_IDX;
 (function(){ const i = ALTS.findIndex(a => a.alt === loadJSON(STORE_ALT)); if(i >= 0) selAlt = i;
   try{ localStorage.removeItem("neigeSB.altitude"); }catch(e){} })(); // ancienne clé (numéro de bouton)
@@ -517,7 +563,7 @@ function analyseModelAlt(m, ai){
 function analyse(){
   const H = axis.length;
   models.forEach(m => { m.res = ALTS.map((a, ai) => analyseModelAlt(m, ai)); });
-  const ens = models.filter(m => m.kind === "ens");
+  const ens = usedModels();   // modèles choisis et disponibles : chacun compte autant
   results = ALTS.map((a, ai) => {
     const pct = new Array(H).fill(null), T = new Array(H).fill(null), Tw = new Array(H).fill(null), W = new Array(H).fill(null);
     for(let h = 0; h < H; h++){
@@ -578,13 +624,13 @@ function renderAlts(){
   box.innerHTML = ALTS.map((a, i) => `<button type="button" data-alt="${i}" aria-pressed="${i === selAlt}"><b>${a.alt}</b><small>${a.name || "m"}</small></button>`).join("");
 }
 function render(){
-  renderAlts();
+  renderAlts(); renderModelPicker();
   document.querySelectorAll(".altName").forEach(el => el.textContent = ALTS[selAlt].alt + " m");
   document.querySelectorAll(".thrTw").forEach(el => el.textContent = temp(settings.tw).replace("+",""));
   document.querySelectorAll(".thrWind").forEach(el => el.textContent = num(settings.wind, 0) + " km/h");
   if(!results) return;
   document.getElementById("results").classList.remove("hidden");
-  renderDays(); renderStarts(); renderChart(); renderAltTable(); renderModelTable(); renderMissing();
+  renderBasis(); renderDays(); renderStarts(); renderChart(); renderAltTable(); renderModelTable(); renderMissing();
 }
 
 /* Jour par jour : schéma de la pente avec 3 altitudes */
@@ -611,7 +657,7 @@ function slopeSVG(cols){
 }
 function renderDays(){
   const box = document.getElementById("days");
-  if(!models.some(m => m.kind === "ens")){ box.innerHTML = `<div class="small muted">Pas de modèle d'ensemble disponible.</div>`; return; }
+  if(!usedModels().length){ box.innerHTML = `<div class="small muted">${NO_MODEL_TXT}</div>`; return; }
   const idxs = DIAG_ALTS.map(alt => ALTS.findIndex(a => a.alt === alt));
   box.innerHTML = days.map((d, di) => {
     const cols = [], rows = [];
@@ -633,11 +679,11 @@ function renderDays(){
 function renderStarts(){
   const R = results[selAlt];
   const hl = document.getElementById("headline"), box = document.getElementById("windows");
-  const nEns = models.filter(m => m.kind === "ens").length;
-  if(!nEns){ hl.innerHTML = "Aucun modèle d'ensemble n'a répondu : impossible de calculer les chances. Réessayez plus tard."; box.innerHTML = ""; return; }
+  if(!usedModels().length){ hl.innerHTML = NO_MODEL_TXT; box.innerHTML = ""; return; }
   const nowTxt = R.pct[0] != null ? `<div class="small ink2" style="margin-top:6px">En ce moment : ${pctTxt(R.pct[0])} de chances · air ${temp(R.T[0])} · humide ${temp(R.Tw[0])} ${lvlTag(R.Tw[0])} · vent ${num(R.W[0],0)}&nbsp;km/h</div>` : "";
   if(!R.windows.length){
-    hl.innerHTML = `Pas de démarrage possible dans les ${days.length} prochains jours.<span class="small muted" style="display:block;font-weight:400">Aucune période d'au moins ${MIN_WINDOW_H} h où la majorité des scénarios dit oui.</span>${nowTxt}`;
+    let last = -1; R.pct.forEach((p, i) => { if(p != null) last = i; });
+    hl.innerHTML = `Pas de démarrage possible${last >= 0 ? " jusqu'à " + whenTxt(axis[last]) : ""}.<span class="small muted" style="display:block;font-weight:400">Aucune période d'au moins ${MIN_WINDOW_H} h où la majorité des scénarios dit oui.</span>${nowTxt}`;
     box.innerHTML = ""; return;
   }
   const w0 = R.windows[0];
@@ -753,22 +799,70 @@ function renderModelTable(){
     const b = bin(n >= DAY_MIN_H ? 0.6 : 0.2);
     return `<td class="mod" style="background:${b.c};color:${b.ink}">${n}\u00a0h<small>${hourRanges(hrs)}</small></td>`;
   };
-  const ensRows = ens.map(m => `<tr><th>${esc(m.label)}<br><small class="muted">${m.points[selAlt].members.length} scénarios</small></th>${
+  const used = m => selModels.has(mkey(m.kind, m.id)) ? `<span class="used" title="utilisé dans le calcul">✓</span> ` : "";
+  const ensRows = ens.map(m => `<tr><th>${used(m)}${esc(m.label)}<br><small class="muted">${m.points[selAlt].members.length} scénarios</small></th>${
     m.res[selAlt].day.map(d => d.p == null ? `<td class="mod" style="color:var(--muted)">—</td>` : cellPct(d.p, `<small>${d.typical.length ? hourRanges(d.typical) : "&nbsp;"}</small>`, "mod")).join("")}</tr>`).join("");
   const detRows = det.map(m => {
     const meta = DET_MODELS.find(d => d.id === m.id);
-    return `<tr><th>${esc(m.label)}<br><small class="muted">${meta.res} · ${m.validHours} h</small></th>${days.map((d, di) => detCell(m, di)).join("")}</tr>`;
+    return `<tr><th>${used(m)}${esc(m.label)}<br><small class="muted">${meta.res} · ${m.validHours} h</small></th>${days.map((d, di) => detCell(m, di)).join("")}</tr>`;
   }).join("");
   const sep = t => `<tr><th colspan="${days.length + 1}" style="position:static;background:none;color:var(--muted);font-size:.78rem;padding-top:10px">${t}</th></tr>`;
   document.getElementById("tblModels").innerHTML = `<table><thead><tr><th></th>${dayHead()}</tr></thead><tbody>${
     ens.length ? sep("Modèles d'ensemble (chances d'au moins 4 h)") + ensRows : ""}${
-    det.length ? sep("Modèles fins (heures de production prévues)") + detRows : ""}</tbody></table>`;
+    det.length ? sep("Modèles déterministes (heures de production prévues)") + detRows : ""}</tbody></table>
+    <div class="small muted" style="margin-top:6px"><span class="used">✓</span> = modèle utilisé dans le calcul (voir « Modèles utilisés »).</div>`;
 }
 function renderMissing(){
   const sec = document.getElementById("secMissing");
   sec.classList.toggle("hidden", !missing.length);
   document.getElementById("missing").innerHTML = missing.map(m =>
     `<li><b>${esc(m.label)}</b> <span class="muted">(${m.kind === "ens" ? "ensemble" : "modèle fin"})</span> : ${esc(m.reason)}</li>`).join("");
+}
+
+/* ---------- Choix des modèles ---------- */
+const NO_MODEL_TXT = "Aucun modèle choisi n'a de prévision. Ouvrez « Modèles utilisés » et cochez au moins un modèle disponible.";
+function usedModels(){ return models.filter(m => selModels.has(mkey(m.kind, m.id))); }
+function modelState(kind, id){
+  if(!results) return null;                       // pas encore calculé
+  if(models.some(m => m.kind === kind && m.id === id)) return "ok";
+  return "off";
+}
+function selectionText(){
+  const list = results ? usedModels() : ALL_KEYS.filter(k => selModels.has(k)).map(k => {
+    const [kind, id] = k.split(":"); return (kind === "ens" ? ENS_MODELS : DET_MODELS).find(m => m.id === id);
+  });
+  const p = PRESETS.find(p => p.keys.length && p.keys.length === selModels.size && p.keys.every(k => selModels.has(k)));
+  if(!list.length) return "aucun";
+  if(list.length === 1) return list[0].label + " seul";
+  return (p ? p.label.replace(" (par défaut)", "") + " : " : "") + "moyenne de " + list.length + " modèles";
+}
+function renderModelPicker(){
+  document.getElementById("modelsSum").textContent = "— " + selectionText();
+  document.getElementById("presets").innerHTML = PRESETS.map((p, i) => `<button type="button" data-preset="${i}">${p.label}</button>`).join("");
+  const chip = (kind, m) => {
+    const k = mkey(kind, m.id), st = modelState(kind, m.id);
+    const fetched = models.find(x => x.kind === kind && x.id === m.id);
+    const info = kind === "ens"
+      ? (fetched ? fetched.points[REF_IDX].members.length + " scénarios" : "ensemble")
+      : m.res + (fetched ? " · " + fetched.validHours + " h de prévision" : "");
+    return `<button type="button" data-model="${k}" aria-pressed="${selModels.has(k)}" class="${st === "off" ? "off" : ""}">${esc(m.label)}<small>${esc(info)}${st === "off" ? " · indisponible" : ""}</small></button>`;
+  };
+  document.getElementById("chipsEns").innerHTML = ENS_MODELS.map(m => chip("ens", m)).join("");
+  document.getElementById("chipsDet").innerHTML = DET_MODELS.map(m => chip("det", m)).join("");
+}
+function renderBasis(){
+  const list = usedModels();
+  let t = "Calcul basé sur : <b>" + esc(selectionText()) + "</b>";
+  if(list.length > 1 && list.length <= 6) t += " (" + list.map(m => esc(m.label)).join(", ") + ")";
+  if(list.length === 1 && list[0].kind === "det") t += ". Un seul scénario : les chances valent 0 % ou 100 %.";
+  const off = [...selModels].filter(k => !models.some(m => mkey(m.kind, m.id) === k)).length;
+  if(off) t += ` <span class="muted">· ${off} modèle${off > 1 ? "s" : ""} coché${off > 1 ? "s" : ""} indisponible${off > 1 ? "s" : ""}</span>`;
+  document.getElementById("basis").innerHTML = t;
+}
+function applyModels(){
+  saveJSON(STORE_MODELS, [...selModels]);
+  if(results) analyse();
+  render();
 }
 
 /* ---------- Réglages ---------- */
@@ -808,6 +902,12 @@ document.getElementById("btnCalc").addEventListener("click", calculate);
 document.getElementById("alts").addEventListener("click", ev => {
   const b = ev.target.closest("button[data-alt]"); if(!b) return;
   selAlt = +b.dataset.alt; saveJSON(STORE_ALT, ALTS[selAlt].alt); render();
+});
+document.getElementById("modelsBox").addEventListener("click", ev => {
+  const c = ev.target.closest("button[data-model]");
+  if(c){ const k = c.dataset.model; selModels.has(k) ? selModels.delete(k) : selModels.add(k); applyModels(); return; }
+  const p = ev.target.closest("button[data-preset]");
+  if(p){ selModels = new Set(PRESETS[+p.dataset.preset].keys); applyModels(); }
 });
 document.querySelectorAll("[data-step]").forEach(b => b.addEventListener("click", () => {
   const k = b.dataset.step; setSetting(k, settings[k] + parseFloat(b.dataset.d));

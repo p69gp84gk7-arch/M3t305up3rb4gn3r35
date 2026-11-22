@@ -200,7 +200,27 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
 .ct-bar{height:18px;background:var(--card2);border-radius:5px;overflow:hidden;display:flex}
 .ct-bar i{display:block;height:100%}
 .ct-row .h{font-weight:800;text-align:right;font-size:.95rem}
-.cal-day{border-top:1px solid var(--line);padding:9px 0 6px}
+.cal-month{font-weight:800;font-size:1.1rem;margin:0 0 8px}
+.cal-wk{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;font-size:.72rem;font-weight:700;color:var(--muted);text-align:center;margin-bottom:4px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cc{position:relative;min-height:74px;padding:4px 3px 4px;border-radius:9px;border:1.5px solid var(--line);background:var(--card2);
+  display:flex;flex-direction:column;gap:3px;color:var(--ink);font:inherit;text-align:left;min-width:0;-webkit-tap-highlight-color:transparent}
+.cc.out{background:none;border-color:transparent;opacity:.35;pointer-events:none}
+.cc .num{align-self:center;min-width:24px;height:24px;line-height:24px;padding:0 3px;border-radius:12px;text-align:center;font-weight:700;font-size:.85rem;white-space:nowrap}
+.cc .num small{font-size:.62rem;font-weight:600}
+.cc.we .num{color:var(--ink2)}
+.cc.today .num{color:#ff453a}
+.cc.sel{border-color:var(--ink)}
+.cc.sel .num{background:var(--ink);color:#0b121a}
+.cc.today.sel .num{background:#ff453a;color:#fff}
+.cc .mini{display:flex;flex-direction:column;gap:2px;padding:0 1px}
+.cc .ml{position:relative;height:3px;background:#1f2b38;border-radius:2px;overflow:hidden}
+.cc .ml.sa{height:5px}
+.cc .ml i{position:absolute;top:0;bottom:0}
+.cc .ml i.unsure{opacity:.6}
+.cc .h{font-size:.64rem;text-align:center;color:var(--ink2);font-weight:700;margin-top:auto}
+.cc .dot{position:absolute;top:6px;right:5px;width:6px;height:6px;border-radius:50%}
+.cal-day{border-top:1px solid var(--line);padding:9px 0 6px;margin-top:10px}
 .cal-day:first-child{border-top:0}
 .cal-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:3px}
 .cal-h .d{font-weight:700;font-size:.95rem}
@@ -291,14 +311,17 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
       <p class="empty muted">Appuyez sur « Calculer » en haut pour charger les prévisions.</p>
     <div class="res hidden">
       <section>
+        <h2>Calendrier — 15 jours <button type="button" class="info" data-info="cal" aria-label="Explication" aria-expanded="false">i</button></h2>
+        <div class="cal-month" id="calMonth"></div>
+        <div class="cal-wk" aria-hidden="true"><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+        <div class="cal-grid" id="calGrid" role="grid" aria-label="Calendrier des 15 prochains jours"></div>
+        <div class="legend" id="calLegend" style="margin:10px 0 4px"></div>
+        <div id="calDays"></div>
+      </section>
+      <section>
         <h2>Temps de fonctionnement estimé <button type="button" class="info" data-info="calTotal" aria-label="Explication" aria-expanded="false">i</button></h2>
         <div class="small muted" style="margin-bottom:10px" id="calTotalSub"></div>
         <div id="calTotals"></div>
-      </section>
-      <section>
-        <h2>Calendrier — 15 jours <button type="button" class="info" data-info="cal" aria-label="Explication" aria-expanded="false">i</button></h2>
-        <div class="legend" id="calLegend" style="margin:0 0 10px"></div>
-        <div id="calDays"></div>
       </section>
     </div>
   </div>
@@ -897,43 +920,81 @@ function calSegments(R, d){
   return segs;
 }
 function calHours(R, d){ return d.idx.filter(i => R.pct[i] != null && R.pct[i] >= CAL_ON).length; }
+const MOIS = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+const MOIS_ABR = ["janv.","févr.","mars","avr.","mai","juin","juil.","août","sept.","oct.","nov.","déc."];
+const JOURS = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
+let calSel = 0;   // jour affiché en grand sous la grille (0 = aujourd'hui)
+const keyParts = k => k.split("-").map(Number);
+const lundiFirst = k => { const [y, m, d] = keyParts(k); return (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7; };
+const addDays = (k, n) => { const [y, m, d] = keyParts(k); return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10); };
+function longDay(k){ const [y, m, d] = keyParts(k); return JOURS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()] + " " + d + " " + MOIS[m - 1]; }
+function dayConfAll(di){
+  const cs = ALTS.map((a, ai) => results[ai].dayConf[di]).filter(Boolean);
+  return cs.length ? {agree: mean(cs.map(c => c.agree)), spread: mean(cs.map(c => c.spread))} : null;
+}
 function renderCalendar(){
-  const tot = document.getElementById("calTotals"), box = document.getElementById("calDays");
-  if(!usedModels().length){ tot.innerHTML = `<div class="small muted">${NO_MODEL_TXT}</div>`; box.innerHTML = ""; return; }
+  const tot = document.getElementById("calTotals"), grid = document.getElementById("calGrid");
+  if(!usedModels().length){
+    tot.innerHTML = `<div class="small muted">${NO_MODEL_TXT}</div>`; grid.innerHTML = "";
+    document.getElementById("calDays").innerHTML = ""; document.getElementById("calMonth").textContent = ""; return;
+  }
   const cd = days.slice(0, CAL_DAYS);
+  if(calSel >= cd.length) calSel = 0;
   const nFirst = Math.min(FIRST_DAYS, cd.length);
-  // 1) temps de fonctionnement estimé : une barre par altitude
+  // 1) grille du mois, façon calendrier Apple : lundi → dimanche, un petit carré par date
+  const first = cd[0].key, last = cd[cd.length - 1].key;
+  const [y0, m0] = keyParts(first), [y1, m1] = keyParts(last);
+  document.getElementById("calMonth").textContent = m0 === m1 ? cap(MOIS[m0 - 1]) + " " + y0
+    : cap(MOIS[m0 - 1]) + (y0 !== y1 ? " " + y0 : "") + " – " + MOIS[m1 - 1] + " " + y1;
+  const idxOf = new Map(cd.map((d, di) => [d.key, di]));
+  const cells = [];
+  for(let k = addDays(first, -lundiFirst(first)), stop = addDays(last, 6 - lundiFirst(last)); k <= stop; k = addDays(k, 1)){
+    const di = idxOf.has(k) ? idxOf.get(k) : -1, [, mm, dd] = keyParts(k);
+    const num = dd === 1 ? `${dd} <small>${MOIS_ABR[mm - 1]}</small>` : dd;
+    const we = lundiFirst(k) >= 5 ? " we" : "";
+    if(di < 0){ cells.push(`<div class="cc out${we}" aria-hidden="true"><span class="num">${num}</span></div>`); continue; }
+    const d = cd[di];
+    const mini = CAL_ORDER.map(ai => `<span class="ml${ai === selAlt ? " sa" : ""}">${calSegments(results[ai], d)
+      .filter(g => g.cls === "on" || g.cls === "unsure")
+      .map(g => `<i class="${g.cls}" style="left:${g.h0 / 24 * 100}%;width:${(g.h1 - g.h0) / 24 * 100}%;background:${g.col}"></i>`).join("")}</span>`).join("");
+    const n = calHours(results[selAlt], d), c = dayConfAll(di), l = c && confLevel(c.agree, c.spread);
+    cells.push(`<button type="button" class="cc${we}${d.key === todayKey ? " today" : ""}${di === calSel ? " sel" : ""}" data-d="${di}"
+      aria-label="${longDay(d.key)} : ${n} heures à ${ALTS[selAlt].alt} m" aria-pressed="${di === calSel}">
+      <span class="num">${num}</span>${l ? `<span class="dot" style="background:${l.col}"></span>` : ""}
+      <span class="mini">${mini}</span><span class="h">${n ? n + "\u00a0h" : "·"}</span></button>`);
+  }
+  grid.innerHTML = cells.join("");
+  document.getElementById("calLegend").innerHTML =
+    [BINS[2], BINS[1], BINS[0]].map(b => `<span><i style="background:${b.c}"></i>${b.lab}</span>`).join("") +
+    `<span><i style="background:var(--s1);height:6px;vertical-align:1px;opacity:.75"></i>30–50 % (incertain)</span>` +
+    `<span><i style="background:#3fc43f;border-radius:50%;width:8px;height:8px;vertical-align:1px"></i>point : sûreté du jour</span>`;
+  renderCalDetail();
+  // 2) temps de fonctionnement estimé : une barre par altitude
   const sums = ALTS.map((a, ai) => ({ai, all: cd.reduce((s, d) => s + calHours(results[ai], d), 0),
                                          first: cd.slice(0, nFirst).reduce((s, d) => s + calHours(results[ai], d), 0)}));
   const max = Math.max(24, ...sums.map(x => x.all));
   document.getElementById("calTotalSub").innerHTML = `Nombre d'heures où l'on peut faire tourner l'installation (au moins la moitié des
-    scénarios disent oui), du ${dayLabel(cd[0].key, true)} au ${dayLabel(cd[cd.length - 1].key, true)}. Bleu vif : les ${nFirst} premiers jours, plus sûrs ; bleu sombre : la suite, à prendre comme une tendance.`;
+    scénarios disent oui), du ${dayLabel(first, true)} au ${dayLabel(last, true)}. Bleu vif : les ${nFirst} premiers jours, plus sûrs ; bleu sombre : la suite, à prendre comme une tendance.`;
   tot.innerHTML = CAL_ORDER.map(ai => {
     const x = sums[ai], a = ALTS[ai];
     return `<div class="ct-row${ai === selAlt ? " sel" : ""}"><span class="n"><b>${a.alt} m</b><small>${a.name || "&nbsp;"}</small></span>
       <span class="ct-bar" role="img" aria-label="${x.all} heures"><i style="width:${x.first / max * 100}%;background:var(--s3)"></i><i style="width:${(x.all - x.first) / max * 100}%;background:var(--s1)"></i></span>
       <span class="h">${x.all}\u00a0h</span></div>`;
   }).join("");
-  // 2) calendrier : une ligne par jour, une barre par altitude sur 0–24 h
-  const nowH = hourOf(axis[0]);
+}
+function renderCalDetail(){
+  // le jour choisi, en grand : une barre par altitude sur 0–24 h
+  const di = calSel, d = days[di], nowH = hourOf(axis[0]);
+  const c = dayConfAll(di), l = c && confLevel(c.agree, c.spread);
   const scale = `<div class="cal-scale"><i></i><div>${[0, 6, 12, 18, 24].map(h => `<span style="left:${h / 24 * 100}%">${h}\u00a0h</span>`).join("")}</div><i></i></div>`;
-  box.innerHTML = cd.map((d, di) => {
-    const cs = ALTS.map((a, ai) => results[ai].dayConf[di]).filter(Boolean);
-    const conf = cs.length ? {agree: mean(cs.map(c => c.agree)), spread: mean(cs.map(c => c.spread))} : null;
-    const l = conf && confLevel(conf.agree, conf.spread);
-    const rows = CAL_ORDER.map(ai => {
-      const R = results[ai], n = calHours(R, d);
-      const segs = calSegments(R, d).map(g => `<i class="${g.cls}" style="left:${g.h0 / 24 * 100}%;width:${(g.h1 - g.h0) / 24 * 100}%${g.col ? ";background:" + g.col : ""}"></i>`).join("");
-      const now = di === 0 ? `<b class="now" style="left:calc(${nowH / 24 * 100}% - 1px)"></b>` : "";
-      return `<div class="cal-r${ai === selAlt ? " sel" : ""}" data-d="${di}" data-a="${ai}"><span class="a">${ALTS[ai].alt}</span><span class="t">${segs}${now}</span><span class="h">${n ? n + "\u00a0h" : `<span class="muted">—</span>`}</span></div>`;
-    }).join("");
-    return `<div class="cal-day"><div class="cal-h"><span class="d">${cap(dayLabel(d.key))}${d.key === todayKey || d.key === tomorrowKey ? ` <small>${dayLabel(d.key, true)}</small>` : ""}${di >= FIRST_DAYS ? ` <small>(moins sûr)</small>` : ""}</span>
-      <span class="c">${l ? `<span style="color:${l.col}">${l.ico} ${l.short}</span>` : ""}</span></div>${scale}${rows}<div class="cal-info" id="calInfo${di}"></div></div>`;
+  const rows = CAL_ORDER.map(ai => {
+    const R = results[ai], n = calHours(R, d);
+    const segs = calSegments(R, d).map(g => `<i class="${g.cls}" style="left:${g.h0 / 24 * 100}%;width:${(g.h1 - g.h0) / 24 * 100}%${g.col ? ";background:" + g.col : ""}"></i>`).join("");
+    const now = di === 0 ? `<b class="now" style="left:calc(${nowH / 24 * 100}% - 1px)"></b>` : "";
+    return `<div class="cal-r${ai === selAlt ? " sel" : ""}" data-d="${di}" data-a="${ai}"><span class="a">${ALTS[ai].alt}</span><span class="t">${segs}${now}</span><span class="h">${n ? n + "\u00a0h" : `<span class="muted">—</span>`}</span></div>`;
   }).join("");
-  document.getElementById("calLegend").innerHTML =
-    [BINS[2], BINS[1], BINS[0]].map(b => `<span><i style="background:${b.c}"></i>${b.lab}</span>`).join("") +
-    `<span><i style="background:var(--s1);height:6px;vertical-align:1px;opacity:.75"></i>30–50 % (incertain, non compté)</span>` +
-    `<span><i style="background:#e8eef5;width:2px"></i>maintenant</span>`;
+  document.getElementById("calDays").innerHTML = `<div class="cal-day"><div class="cal-h"><span class="d">${cap(longDay(d.key))}${d.key === todayKey ? ` <small>aujourd'hui</small>` : d.key === tomorrowKey ? ` <small>demain</small>` : ""}${di >= FIRST_DAYS ? ` <small>(moins sûr)</small>` : ""}</span>
+    <span class="c">${l ? `<span style="color:${l.col}">${l.ico} ${l.short}</span>` : ""}</span></div>${scale}${rows}<div class="cal-info" id="calInfo${di}"></div></div>`;
 }
 function showCalInfo(di, ai){
   const d = days[di], R = results[ai], A = ALTS[ai];
@@ -1490,11 +1551,13 @@ const INFO = {
     allumer l'installation : heures où au moins la moitié des scénarios disent « production possible » (seuils de l'onglet Réglages).</p>
     <p>Partie bleu vif : les 7 premiers jours, plus sûrs. Partie bleu sombre : les jours 8 à 15, à prendre comme une tendance.</p>
     <p>C'est une estimation météo : elle ne tient pas compte de l'eau, de l'électricité ni des pannes.</p>`],
-  cal: ["Calendrier", `<p>Une ligne par jour, de 0 h à 24 h. Dans chaque jour, une barre par altitude, du haut (2200 m) au bas
-    (1450 m) de la station.</p><ul><li><b>Barre allumée</b> : on peut faire tourner l'installation (au moins 50 % des scénarios disent oui).
-    Plus elle est claire, plus c'est sûr.</li><li><b>Barre fine foncée</b> : 30 à 50 % des scénarios, possible mais incertain (non
-    compté dans les heures).</li><li><b>Hachures</b> : heures passées, ou au-delà des prévisions.</li><li><b>À droite</b> : heures de
-    fonctionnement de la journée.</li></ul><p>Touchez une barre pour le détail. L'altitude choisie est en bleu.</p>`],
+  cal: ["Calendrier", `<p>Comme le calendrier de l'iPhone : une colonne par jour de la semaine (lundi → dimanche), un petit carré
+    par date, pour les 15 prochains jours. La date du jour est en rouge.</p><ul><li><b>Dans chaque carré</b> : une mini-barre par
+    altitude, de 2200 m (en haut) à 1450 m (en bas), sur la journée de 0 h à 24 h. Elle s'allume aux heures où l'on peut faire
+    tourner l'installation (au moins 50 % des scénarios). L'altitude choisie a la barre la plus épaisse.</li><li><b>En bas du carré</b> :
+    les heures de fonctionnement à l'altitude choisie.</li><li><b>Le point</b> : sûreté de la prévision (vert sûre, orange moyenne,
+    rouge incertaine).</li></ul><p>Touchez un carré : la journée s'affiche en grand en dessous, avec les heures exactes. Touchez ensuite
+    une barre pour le détail.</p>`],
   missing: ["Modèles indisponibles", `<p>Modèles qui n'ont pas répondu à ce calcul : panne du service, quota gratuit dépassé
     (10 000 demandes par jour et par connexion) ou pas de données pour Superbagnères. Les autres modèles sont utilisés normalement.
     Réessayez plus tard.</p>`]
@@ -1625,6 +1688,12 @@ document.getElementById("btnCalc").addEventListener("click", calculate);
 document.getElementById("alts").addEventListener("click", ev => {
   const b = ev.target.closest("button[data-alt]"); if(!b) return;
   selAlt = +b.dataset.alt; saveJSON(STORE_ALT, ALTS[selAlt].alt); render();
+});
+document.getElementById("calGrid").addEventListener("click", ev => {
+  const c = ev.target.closest(".cc[data-d]"); if(!c) return;
+  calSel = +c.dataset.d;
+  document.querySelectorAll("#calGrid .cc[data-d]").forEach(x => { const on = +x.dataset.d === calSel; x.classList.toggle("sel", on); x.setAttribute("aria-pressed", on); });
+  renderCalDetail();
 });
 document.getElementById("calDays").addEventListener("click", ev => {
   const r = ev.target.closest(".cal-r"); if(r) showCalInfo(+r.dataset.d, +r.dataset.a);

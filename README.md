@@ -65,6 +65,9 @@ La page s'ouvre alors comme une application. Il faut une connexion internet pour
 - **Par modèle** : pour l'altitude choisie, le détail de chaque modèle jour par jour.
 - **Modèles indisponibles** : les modèles qui n'ont pas répondu, avec la raison.
 - **Comment c'est calculé** : explication simple, dans un encadré dépliable.
+- **Bulles d'information** : un petit « i » à côté de chaque titre, de chaque tableau et de chaque modèle
+  (dans « Modèles utilisés » et dans le tableau « Par modèle »). En le touchant, une bulle explique
+  simplement ce que montre le bloc, ou d'où vient le modèle, sa précision et sa portée.
 
 ## Le calcul
 

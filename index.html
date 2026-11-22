@@ -152,7 +152,7 @@ footer a{color:var(--ink2)}
 .chip-w > .info{position:absolute;right:8px;top:50%;margin:-12px 0 0}
 /* Onglets */
 body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
-.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:60;display:grid;grid-template-columns:repeat(4,1fr);
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:60;display:grid;grid-template-columns:repeat(5,1fr);
   background:rgba(11,18,26,.96);border-top:1px solid var(--line);padding:4px 4px calc(4px + env(safe-area-inset-bottom));
   -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 .tabbar button{min-height:58px;border:0;background:none;color:var(--muted);font-size:.78rem;font-weight:600;border-radius:12px;
@@ -161,7 +161,7 @@ body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
 .tabbar button[aria-selected="true"]{color:var(--accent);background:#14273b}
 
 .empty{text-align:center;padding:28px 10px;margin:14px 0;border:1px dashed var(--line);border-radius:var(--r)}
-@media (min-width:760px){.tabbar{left:50%;right:auto;width:560px;transform:translateX(-50%);border:1px solid var(--line);border-bottom:0;border-radius:16px 16px 0 0}}
+@media (min-width:760px){.tabbar{left:50%;right:auto;width:600px;transform:translateX(-50%);border:1px solid var(--line);border-bottom:0;border-radius:16px 16px 0 0}}
 /* Mode simplifié */
 .top{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .mode-btn{min-height:40px;padding:6px 14px;border-radius:999px;border:1px solid var(--accent);background:none;color:var(--accent);font-weight:700;font-size:.88rem;white-space:nowrap;margin-top:8px}
@@ -190,6 +190,40 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
 .links a b{font-size:.98rem;padding-right:14px}
 .links a small{color:var(--muted);font-size:.76rem;margin-top:3px}
 .links a:active{background:#22344a}
+/* Calendrier 15 jours */
+.tabbar button{font-size:.72rem}
+.ct-row{display:grid;grid-template-columns:118px 1fr 48px;align-items:center;gap:8px;margin:7px 0}
+.ct-row .n{font-size:.85rem;line-height:1.15}
+.ct-row .n b{display:block;font-size:.95rem}
+.ct-row .n small{color:var(--muted)}
+.ct-row.sel .n b{color:var(--accent)}
+.ct-bar{height:18px;background:var(--card2);border-radius:5px;overflow:hidden;display:flex}
+.ct-bar i{display:block;height:100%}
+.ct-row .h{font-weight:800;text-align:right;font-size:.95rem}
+.cal-day{border-top:1px solid var(--line);padding:9px 0 6px}
+.cal-day:first-child{border-top:0}
+.cal-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:3px}
+.cal-h .d{font-weight:700;font-size:.95rem}
+.cal-h .d small{font-weight:400;color:var(--muted)}
+.cal-h .c{text-align:right;font-size:.8rem;white-space:nowrap}
+.cal-scale{display:grid;grid-template-columns:46px 1fr 40px;gap:6px;font-size:.66rem;color:var(--muted);margin-bottom:1px}
+.cal-scale div{position:relative;height:10px}
+.cal-scale div span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
+.cal-scale div span:first-child{transform:none}.cal-scale div span:last-child{transform:translateX(-100%)}
+.cal-r{display:grid;grid-template-columns:46px 1fr 40px;gap:6px;align-items:center;height:15px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cal-r .a{font-size:.72rem;color:var(--ink2);text-align:right;font-variant-numeric:tabular-nums}
+.cal-r.sel .a{color:var(--accent);font-weight:800}
+.cal-r .t{position:relative;height:11px;border-radius:3px;
+  background:linear-gradient(90deg,transparent calc(25% - .5px),#2a3846 calc(25% - .5px),#2a3846 calc(25% + .5px),transparent calc(25% + .5px),
+    transparent calc(50% - .5px),#34465a calc(50% - .5px),#34465a calc(50% + .5px),transparent calc(50% + .5px),
+    transparent calc(75% - .5px),#2a3846 calc(75% - .5px),#2a3846 calc(75% + .5px),transparent calc(75% + .5px)),#17212c}
+.cal-r .t i{position:absolute;top:0;bottom:0;border-radius:2px}
+.cal-r .t i.unsure{top:3px;bottom:3px;opacity:.75}
+.cal-r .t i.past{background:repeating-linear-gradient(135deg,#1f2a36 0 3px,#17212c 3px 6px)}
+.cal-r .t i.nodata{background:repeating-linear-gradient(135deg,#2a3440 0 2px,transparent 2px 6px)}
+.cal-r .t b.now{position:absolute;top:-3px;bottom:-3px;width:2px;background:#e8eef5;border-radius:1px}
+.cal-r .h{font-size:.74rem;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.cal-info{font-size:.85rem;color:var(--ink2);margin:4px 0 2px 52px;min-height:0}
 .hidden{display:none!important}
 </style>
 </head>
@@ -251,6 +285,22 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
       <h2>Autres sites météo — <span class="altName"></span> <button type="button" class="info" data-info="liens" aria-label="Explication" aria-expanded="false">i</button></h2>
       <div class="links" id="linksFull"></div>
     </section>
+  </div>
+
+  <div class="tab hidden" id="tab-cal" role="tabpanel" aria-labelledby="tb-cal">
+      <p class="empty muted">Appuyez sur « Calculer » en haut pour charger les prévisions.</p>
+    <div class="res hidden">
+      <section>
+        <h2>Temps de fonctionnement estimé <button type="button" class="info" data-info="calTotal" aria-label="Explication" aria-expanded="false">i</button></h2>
+        <div class="small muted" style="margin-bottom:10px" id="calTotalSub"></div>
+        <div id="calTotals"></div>
+      </section>
+      <section>
+        <h2>Calendrier — 15 jours <button type="button" class="info" data-info="cal" aria-label="Explication" aria-expanded="false">i</button></h2>
+        <div class="legend" id="calLegend" style="margin:0 0 10px"></div>
+        <div id="calDays"></div>
+      </section>
+    </div>
   </div>
 
   <div class="tab hidden" id="tab-graphs" role="tabpanel" aria-labelledby="tb-graphs">
@@ -395,6 +445,7 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
 
 <nav class="tabbar" role="tablist" aria-label="Onglets">
   <button type="button" role="tab" id="tb-resume" data-tab="resume" aria-controls="tab-resume"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M5 5l14 14M19 5L5 19"/></svg>Résumé</button>
+  <button type="button" role="tab" id="tb-cal" data-tab="cal" aria-controls="tab-cal"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M7 14h6M7 17h10"/></svg>Calendrier</button>
   <button type="button" role="tab" id="tb-graphs" data-tab="graphs" aria-controls="tab-graphs"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>Graphiques</button>
   <button type="button" role="tab" id="tb-tables" data-tab="tables" aria-controls="tab-tables"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16"/></svg>Tableaux</button>
   <button type="button" role="tab" id="tb-reglages" data-tab="reglages" aria-controls="tab-reglages"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Réglages</button>
@@ -825,6 +876,76 @@ function renderLinks(){
   ["linksFull", "linksSimple"].forEach(id => { document.getElementById(id).innerHTML = html; });
 }
 
+/* ---------- Calendrier 15 jours ---------- */
+const CAL_DAYS = 15, CAL_ON = 0.5, CAL_MAYBE = 0.3;   // allumage : au moins 50 % des scénarios ; 30–50 % : possible mais incertain
+const CAL_ORDER = [...ALTS.keys()].reverse();          // du haut (2200 m) vers le bas (1450 m), comme sur la montagne
+function calSegments(R, d){
+  // découpe la journée en morceaux d'heures consécutives de même niveau ; position en heures depuis minuit
+  const segs = [], firstH = hourOf(axis[d.idx[0]]);
+  if(firstH > 0) segs.push({h0:0, h1:firstH, cls:"past"});
+  let cur = null;
+  d.idx.forEach(i => {
+    const p = R.pct[i], h = hourOf(axis[i]);
+    const cls = p == null ? "nodata" : p >= CAL_ON ? "on" : p >= CAL_MAYBE ? "unsure" : null;
+    const col = cls === "on" ? bin(p).c : cls === "unsure" ? "var(--s1)" : null;
+    if(cur && cur.cls === cls && cur.col === col && cur.h1 === h){ cur.h1 = h + 1; return; }
+    cur = cls ? {h0:h, h1:h + 1, cls, col} : null;
+    if(cur) segs.push(cur);
+  });
+  const lastH = hourOf(axis[d.idx[d.idx.length - 1]]) + 1;
+  if(lastH < 24) segs.push({h0:lastH, h1:24, cls:"nodata"});
+  return segs;
+}
+function calHours(R, d){ return d.idx.filter(i => R.pct[i] != null && R.pct[i] >= CAL_ON).length; }
+function renderCalendar(){
+  const tot = document.getElementById("calTotals"), box = document.getElementById("calDays");
+  if(!usedModels().length){ tot.innerHTML = `<div class="small muted">${NO_MODEL_TXT}</div>`; box.innerHTML = ""; return; }
+  const cd = days.slice(0, CAL_DAYS);
+  const nFirst = Math.min(FIRST_DAYS, cd.length);
+  // 1) temps de fonctionnement estimé : une barre par altitude
+  const sums = ALTS.map((a, ai) => ({ai, all: cd.reduce((s, d) => s + calHours(results[ai], d), 0),
+                                         first: cd.slice(0, nFirst).reduce((s, d) => s + calHours(results[ai], d), 0)}));
+  const max = Math.max(24, ...sums.map(x => x.all));
+  document.getElementById("calTotalSub").innerHTML = `Nombre d'heures où l'on peut faire tourner l'installation (au moins la moitié des
+    scénarios disent oui), du ${dayLabel(cd[0].key, true)} au ${dayLabel(cd[cd.length - 1].key, true)}. Bleu vif : les ${nFirst} premiers jours, plus sûrs ; bleu sombre : la suite, à prendre comme une tendance.`;
+  tot.innerHTML = CAL_ORDER.map(ai => {
+    const x = sums[ai], a = ALTS[ai];
+    return `<div class="ct-row${ai === selAlt ? " sel" : ""}"><span class="n"><b>${a.alt} m</b><small>${a.name || "&nbsp;"}</small></span>
+      <span class="ct-bar" role="img" aria-label="${x.all} heures"><i style="width:${x.first / max * 100}%;background:var(--s3)"></i><i style="width:${(x.all - x.first) / max * 100}%;background:var(--s1)"></i></span>
+      <span class="h">${x.all}\u00a0h</span></div>`;
+  }).join("");
+  // 2) calendrier : une ligne par jour, une barre par altitude sur 0–24 h
+  const nowH = hourOf(axis[0]);
+  const scale = `<div class="cal-scale"><i></i><div>${[0, 6, 12, 18, 24].map(h => `<span style="left:${h / 24 * 100}%">${h}\u00a0h</span>`).join("")}</div><i></i></div>`;
+  box.innerHTML = cd.map((d, di) => {
+    const cs = ALTS.map((a, ai) => results[ai].dayConf[di]).filter(Boolean);
+    const conf = cs.length ? {agree: mean(cs.map(c => c.agree)), spread: mean(cs.map(c => c.spread))} : null;
+    const l = conf && confLevel(conf.agree, conf.spread);
+    const rows = CAL_ORDER.map(ai => {
+      const R = results[ai], n = calHours(R, d);
+      const segs = calSegments(R, d).map(g => `<i class="${g.cls}" style="left:${g.h0 / 24 * 100}%;width:${(g.h1 - g.h0) / 24 * 100}%${g.col ? ";background:" + g.col : ""}"></i>`).join("");
+      const now = di === 0 ? `<b class="now" style="left:calc(${nowH / 24 * 100}% - 1px)"></b>` : "";
+      return `<div class="cal-r${ai === selAlt ? " sel" : ""}" data-d="${di}" data-a="${ai}"><span class="a">${ALTS[ai].alt}</span><span class="t">${segs}${now}</span><span class="h">${n ? n + "\u00a0h" : `<span class="muted">—</span>`}</span></div>`;
+    }).join("");
+    return `<div class="cal-day"><div class="cal-h"><span class="d">${cap(dayLabel(d.key))}${d.key === todayKey || d.key === tomorrowKey ? ` <small>${dayLabel(d.key, true)}</small>` : ""}${di >= FIRST_DAYS ? ` <small>(moins sûr)</small>` : ""}</span>
+      <span class="c">${l ? `<span style="color:${l.col}">${l.ico} ${l.short}</span>` : ""}</span></div>${scale}${rows}<div class="cal-info" id="calInfo${di}"></div></div>`;
+  }).join("");
+  document.getElementById("calLegend").innerHTML =
+    [BINS[2], BINS[1], BINS[0]].map(b => `<span><i style="background:${b.c}"></i>${b.lab}</span>`).join("") +
+    `<span><i style="background:var(--s1);height:6px;vertical-align:1px;opacity:.75"></i>30–50 % (incertain, non compté)</span>` +
+    `<span><i style="background:#e8eef5;width:2px"></i>maintenant</span>`;
+}
+function showCalInfo(di, ai){
+  const d = days[di], R = results[ai], A = ALTS[ai];
+  const on = d.idx.filter(i => R.pct[i] != null && R.pct[i] >= CAL_ON);
+  const el = document.getElementById("calInfo" + di);
+  document.querySelectorAll(".cal-info").forEach(x => { if(x !== el) x.textContent = ""; });
+  if(!on.length){ el.innerHTML = `<b>${A.alt} m</b> : pas d'allumage prévu ce jour-là.`; return; }
+  const ranges = hourRanges(on.map(i => hourOf(axis[i])));
+  const pk = Math.max(...on.map(i => R.pct[i])), tw = Math.min(...on.map(i => R.Tw[i]).filter(x => x != null));
+  el.innerHTML = `<b>${A.alt} m</b> : ${on.length}\u00a0h (${ranges}) · chances jusqu'à ${pctTxt(pk)} · température humide la plus basse ${temp(tw)}`;
+}
+
 /* ---------- Affichage ---------- */
 function renderAlts(){
   const box = document.getElementById("alts");
@@ -839,7 +960,7 @@ function render(){
   document.querySelectorAll(".res").forEach(el => el.classList.remove("hidden"));
   document.querySelectorAll(".empty").forEach(el => el.classList.add("hidden"));
   renderSimple();
-  renderBasis(); renderDays(); renderStarts(); renderChart(); renderSpaghetti(); renderAltTable(); renderModelTable(); renderMissing();
+  renderBasis(); renderDays(); renderStarts(); renderChart(); renderSpaghetti(); renderCalendar(); renderAltTable(); renderModelTable(); renderMissing();
 }
 
 /* Jour par jour : schéma de la pente avec 3 altitudes */
@@ -1365,6 +1486,15 @@ const INFO = {
     heure et les tendances à 10 jours, pour Luchon-Superbagnères.</li><li><b>Meteoblue</b> : prévisions et comparaison de modèles
     calculées pour l'altitude choisie.</li><li><b>Snow-forecast</b> : prévisions de la station, en bas, au milieu ou en haut selon l'altitude
     choisie.</li></ul><p>Ces sites ne font pas le calcul de température humide de cette page : leurs « températures » sont celles de l'air.</p>`],
+  calTotal: ["Temps de fonctionnement estimé", `<p>Pour chaque altitude, le nombre d'heures des 15 prochains jours où l'on peut
+    allumer l'installation : heures où au moins la moitié des scénarios disent « production possible » (seuils de l'onglet Réglages).</p>
+    <p>Partie bleu vif : les 7 premiers jours, plus sûrs. Partie bleu sombre : les jours 8 à 15, à prendre comme une tendance.</p>
+    <p>C'est une estimation météo : elle ne tient pas compte de l'eau, de l'électricité ni des pannes.</p>`],
+  cal: ["Calendrier", `<p>Une ligne par jour, de 0 h à 24 h. Dans chaque jour, une barre par altitude, du haut (2200 m) au bas
+    (1450 m) de la station.</p><ul><li><b>Barre allumée</b> : on peut faire tourner l'installation (au moins 50 % des scénarios disent oui).
+    Plus elle est claire, plus c'est sûr.</li><li><b>Barre fine foncée</b> : 30 à 50 % des scénarios, possible mais incertain (non
+    compté dans les heures).</li><li><b>Hachures</b> : heures passées, ou au-delà des prévisions.</li><li><b>À droite</b> : heures de
+    fonctionnement de la journée.</li></ul><p>Touchez une barre pour le détail. L'altitude choisie est en bleu.</p>`],
   missing: ["Modèles indisponibles", `<p>Modèles qui n'ont pas répondu à ce calcul : panne du service, quota gratuit dépassé
     (10 000 demandes par jour et par connexion) ou pas de données pour Superbagnères. Les autres modèles sont utilisés normalement.
     Réessayez plus tard.</p>`]
@@ -1414,7 +1544,7 @@ addEventListener("resize", closeBubble);
 
 /* ---------- Onglets ---------- */
 const STORE_TAB = "neigeSB.onglet";
-const TABS = ["resume", "graphs", "tables", "reglages"];
+const TABS = ["resume", "cal", "graphs", "tables", "reglages"];
 let curTab = "resume";
 function showTab(t, scrollTop){
   if(!TABS.includes(t)) t = "resume";
@@ -1495,6 +1625,9 @@ document.getElementById("btnCalc").addEventListener("click", calculate);
 document.getElementById("alts").addEventListener("click", ev => {
   const b = ev.target.closest("button[data-alt]"); if(!b) return;
   selAlt = +b.dataset.alt; saveJSON(STORE_ALT, ALTS[selAlt].alt); render();
+});
+document.getElementById("calDays").addEventListener("click", ev => {
+  const r = ev.target.closest(".cal-r"); if(r) showCalInfo(+r.dataset.d, +r.dataset.a);
 });
 document.getElementById("moreDays").addEventListener("click", () => { showAllDays = !showAllDays; renderDays(); });
 document.getElementById("moreWins").addEventListener("click", () => { showAllWins = !showAllWins; renderStarts(); });

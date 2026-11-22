@@ -34,12 +34,13 @@ La page s'ouvre alors comme une application. Il faut une connexion internet pour
 
 ## Ce que montre la page
 
-La page est rangée en **4 onglets**, avec une barre en bas de l'écran. Le bouton **Calculer** et le choix de
+La page est rangée en **5 onglets**, avec une barre en bas de l'écran. Le bouton **Calculer** et le choix de
 l'altitude restent en haut. L'onglet ouvert est gardé dans le téléphone.
 
 | Onglet | Contenu |
 |---|---|
 | **Résumé** | Jour par jour, Démarrages possibles |
+| **Calendrier** | Calendrier à 15 jours façon Apple, temps de fonctionnement estimé (une barre par altitude) |
 | **Graphiques** | Heure par heure, Diagramme des scénarios |
 | **Tableaux** | Toutes les altitudes, Par modèle, Modèles indisponibles |
 | **Réglages** | Réglages des seuils, Modèles utilisés, Comment c'est calculé |
@@ -81,6 +82,20 @@ l'altitude restent en haut. L'onglet ouvert est gardé dans le téléphone.
 - **Bulles d'information** : un petit « i » à côté de chaque titre, de chaque tableau et de chaque modèle
   (dans « Modèles utilisés » et dans le tableau « Par modèle »). En le touchant, une bulle explique
   simplement ce que montre le bloc, ou d'où vient le modèle, sa précision et sa portée.
+
+## Calendrier à 15 jours
+
+Onglet **Calendrier** :
+
+- **Temps de fonctionnement estimé** : une barre par altitude (2200 m en haut, 1450 m en bas) dont la longueur
+  est le nombre d'heures des 15 prochains jours où l'on peut allumer l'installation, c'est-à-dire où au moins
+  50 % des scénarios disent « production possible ». Partie bleu vif : 7 premiers jours ; bleu sombre : jours 8 à 15.
+- **Calendrier**, façon calendrier Apple : une grille lundi → dimanche avec un petit carré par date pour les
+  15 prochains jours (date du jour en rouge). Dans chaque carré, une mini-barre par altitude (2200 m en haut,
+  1450 m en bas) sur 0 h – 24 h, allumée aux heures où l'on peut produire ; en bas, les heures de fonctionnement
+  à l'altitude choisie ; un point de couleur donne la sûreté du jour. Toucher un carré affiche la journée en grand
+  en dessous (une barre par altitude, heures exactes, trait « maintenant »), et toucher une barre en donne le détail
+  (heures, chances, température humide la plus basse).
 
 ## Autres sites météo
 

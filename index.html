@@ -44,8 +44,6 @@ button{font:inherit;color:inherit;cursor:pointer}
 #appVersion{display:block;margin-top:4px}
 #status.err{color:var(--bad)}
 .alts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
-.alts button.ref b::after{content:" ★";color:#fab219;font-size:.8em}
-.alts button.ref[aria-pressed="true"] b::after{color:var(--accent-ink)}
 .alts button{min-height:60px;border-radius:12px;border:1px solid var(--line);background:var(--card2);padding:6px 2px;line-height:1.15}
 .alts button b{display:block;font-size:1.1rem}
 .alts button small{display:block;color:var(--muted);font-size:.7rem;margin-top:2px}
@@ -303,7 +301,7 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
     <div class="res hidden">
       <div id="basis" class="small ink2"></div>
       <section id="secDays">
-        <h2>Jour par jour — 1450, 1800 et 1850 m <button type="button" class="info" data-info="jours" aria-label="Explication" aria-expanded="false">i</button></h2>
+        <h2>Jour par jour — 1450, 1800 et 2000 m <button type="button" class="info" data-info="jours" aria-label="Explication" aria-expanded="false">i</button></h2>
         <div class="small muted" style="margin-bottom:8px">Chances d'avoir au moins 4 h de production dans la journée, et heures
           théoriques de démarrage → arrêt (dernière heure où la majorité des scénarios dit oui).</div>
         <div class="days" id="days"></div>
@@ -441,7 +439,7 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
       <details>
         <summary>Comment c'est calculé</summary>
         <p><b>1. Les prévisions.</b> Au moment où vous appuyez sur « Calculer », la page demande les prévisions heure par heure à Open-Meteo
-          (service gratuit) pour les 3 altitudes de la station (1450, 1800 et 1850 m) : température de l'air, humidité et vent à 10 m. Les prévisions sont
+          (service gratuit) pour les 6 altitudes de la station : température de l'air, humidité et vent à 10 m. Les prévisions sont
           corrigées pour l'altitude exacte de chaque point. Rien n'est enregistré sur un serveur.</p>
         <p><b>2. La température humide.</b> C'est la température qui compte pour faire de la neige : plus l'air est sec, plus elle est
           basse que la température de l'air. Elle est calculée à partir de la température, de l'humidité et de la pression de l'air à
@@ -503,9 +501,10 @@ const ALTS = [
   // 1450 m : point provisoire (le plus proche du plateau à ~1450 m sur le relief), à confirmer.
   {alt:1450, lat:42.7556, lon:0.5747, name:"bas de station"},
   {alt:1800, lat:42.7576, lon:0.5747, name:"plateau"},
-  // 1850 m : altitude de référence pour allumer les canons. Point provisoire, entre le plateau et l'ancien point 1900 m.
-  // Les altitudes au-dessus (1900 à 2200 m) ont été retirées : les canons s'allument d'après les températures à 1850 m.
-  {alt:1850, lat:42.7553, lon:0.5699, name:"référence allumage"}
+  {alt:1900, lat:42.7530, lon:0.5650, name:"booster"},
+  {alt:2000, lat:42.7480, lon:0.5560, name:""},
+  {alt:2100, lat:42.7440, lon:0.5480, name:"haut de station"},
+  {alt:2200, lat:42.7395, lon:0.5410, name:""}
 ];
 const ENS_API = "https://ensemble-api.open-meteo.com/v1/ensemble";
 const DET_API = "https://api.open-meteo.com/v1/forecast";
@@ -569,8 +568,7 @@ const REF_IDX = ALTS.findIndex(a => a.alt === REF_ALT);
 let selModels = new Set(DEFAULT_SEL);
 (function(){ const a = loadJSON(STORE_MODELS);
   if(Array.isArray(a)) selModels = new Set(a.map(k => k === "ens:gfs025" ? "ens:gfs_seamless" : k).filter(k => ALL_KEYS.includes(k))); })();
-const DEFAULT_ALT = 1850;           // altitude affichée par défaut : celle qui décide de l'allumage
-let selAlt = ALTS.findIndex(a => a.alt === DEFAULT_ALT);
+let selAlt = REF_IDX;
 (function(){ const i = ALTS.findIndex(a => a.alt === loadJSON(STORE_ALT)); if(i >= 0) selAlt = i;
   try{ localStorage.removeItem("neigeSB.altitude"); }catch(e){} })(); // ancienne clé (numéro de bouton)
 
@@ -944,7 +942,7 @@ const MC_PT = "lon=0.577&lat=42.768&ville=Luchon-Superbagneres";
 function siteLinks(){
   const A = ALTS[selAlt];
   const mb = (page) => `https://www.meteoblue.com/fr/meteo/${page}/${A.lat.toFixed(3)}N${A.lon.toFixed(3)}E${A.alt}_Europe%2FParis`;
-  const sf = A.alt < 1700 ? ["bot", "bas"] : ["mid", "milieu"];
+  const sf = A.alt < 1700 ? ["bot", "bas"] : A.alt < 2100 ? ["mid", "milieu"] : ["top", "haut"];
   return [
     {site:"Météo-France", t:"Montagne Superbagnères 1800 m", u:"https://meteofrance.com/meteo-montagne/superbagneres-1800m/314701"},
     {site:"Meteociel", t:"Diagramme GFS : 30 scénarios", u:"https://www.meteociel.fr/cartes_obs/gens_display.php?ext=1&" + MC_PT},
@@ -963,7 +961,7 @@ function renderLinks(){
 
 /* ---------- Calendrier 15 jours ---------- */
 const CAL_DAYS = 15, CAL_ON = 0.5, CAL_MAYBE = 0.3;   // allumage : au moins 50 % des scénarios ; 30–50 % : possible mais incertain
-const CAL_ORDER = [...ALTS.keys()].reverse();          // du haut (1850 m) vers le bas (1450 m), comme sur la montagne
+const CAL_ORDER = [...ALTS.keys()].reverse();          // du haut (2200 m) vers le bas (1450 m), comme sur la montagne
 function calSegments(R, d){
   // découpe la journée en morceaux d'heures consécutives de même niveau ; position en heures depuis minuit
   const segs = [], firstH = hourOf(axis[d.idx[0]]);
@@ -1072,7 +1070,7 @@ function showCalInfo(di, ai){
 /* ---------- Affichage ---------- */
 function renderAlts(){
   const box = document.getElementById("alts");
-  box.innerHTML = ALTS.map((a, i) => `<button type="button" data-alt="${i}" aria-pressed="${i === selAlt}"${a.alt === DEFAULT_ALT ? ' class="ref"' : ""}><b>${a.alt}</b><small>${a.name || "m"}</small></button>`).join("");
+  box.innerHTML = ALTS.map((a, i) => `<button type="button" data-alt="${i}" aria-pressed="${i === selAlt}"><b>${a.alt}</b><small>${a.name || "m"}</small></button>`).join("");
 }
 function render(){
   renderAlts(); renderModelPicker(); renderLinks();
@@ -1087,7 +1085,7 @@ function render(){
 }
 
 /* Jour par jour : schéma de la pente avec 3 altitudes */
-const DIAG_ALTS = [1850, 1800, 1450];   // du haut vers le bas
+const DIAG_ALTS = [2000, 1800, 1450];   // du haut vers le bas
 /* ---------- Mode simplifié ---------- */
 const STORE_MODE = "neigeSB.mode";
 const ANS_OUI = 0.7, ANS_PE = 0.4;   // chances d'au moins 4 h dans la journée : OUI dès 70 %, PEUT-ÊTRE dès 40 %
@@ -1157,9 +1155,8 @@ function daySegments(R, d){
   });
 }
 function slopeSVG(cols){
-  // pente stylisée : bas à gauche, sommet à droite. Points à hauteurs fixes (schéma, pas à l'échelle),
-  // dans l'ordre de DIAG_ALTS (du haut vers le bas), pour qu'ils ne se chevauchent pas.
-  const Y = [14, 40, 70], y = alt => Y[DIAG_ALTS.indexOf(alt)];
+  // pente stylisée : bas à gauche, sommet à droite ; points placés selon l'altitude
+  const y = alt => 78 - (alt - 1350) / (2150 - 1350) * 68;
   const x = yy => 6 + (80 - yy) / 72 * 64;
   let s = `<polygon points="0,84 0,80 14,72 24,66 34,52 44,44 54,28 62,22 70,8 76,12 76,84" fill="#1f2d3b" stroke="#3a4b5d"/>`;
   DIAG_ALTS.forEach((alt, k) => {
@@ -1588,8 +1585,7 @@ const MODEL_INFO = {
   "det:jma_gsm": "Service météo japonais. Maille large (55 km) : le relief est très lissé, peu adapté à la montagne."
 };
 const INFO = {
-  alt: ["Altitude", `<p>Les 3 points suivis : 1450 m bas de station, 1800 m plateau et <b>1850 m ★ référence allumage</b> (les canons s'allument
-    d'après les températures à 1850 m ; c'est l'altitude affichée par défaut). Pour chaque point, les prévisions sont
+  alt: ["Altitude", `<p>Les 6 points du domaine : 1450 m bas de station, 1800 m plateau, 1900 m booster, 2000 m, 2100 m haut de station et 2200 m. Pour chaque point, les prévisions sont
     corrigées à l'altitude exacte : en général, plus on monte, plus il fait froid.</p><p>Le bouton choisi commande les blocs marqués
     « — 1800 m » (par exemple). Il est gardé dans le téléphone.</p>`],
   seuils: ["Réglages des seuils", `<p>La production est jugée possible quand, à la même heure :</p><ul><li>la température humide est
@@ -1642,7 +1638,7 @@ const INFO = {
     <p>C'est une estimation météo : elle ne tient pas compte de l'eau, de l'électricité ni des pannes.</p>`],
   cal: ["Calendrier", `<p>Comme le calendrier de l'iPhone : une colonne par jour de la semaine (lundi → dimanche), un petit carré
     par date, pour les 15 prochains jours. La date du jour est en rouge.</p><ul><li><b>Dans chaque carré</b> : une mini-barre par
-    altitude, de 1850 m (en haut) à 1450 m (en bas), sur la journée de 0 h à 24 h. Elle s'allume aux heures où l'on peut faire
+    altitude, de 2200 m (en haut) à 1450 m (en bas), sur la journée de 0 h à 24 h. Elle s'allume aux heures où l'on peut faire
     tourner l'installation (au moins 50 % des scénarios). L'altitude choisie a la barre la plus épaisse.</li><li><b>En bas du carré</b> :
     les heures de fonctionnement à l'altitude choisie.</li><li><b>Le point</b> : sûreté de la prévision (vert sûre, orange moyenne,
     rouge incertaine).</li></ul><p>Touchez un carré : la journée s'affiche en grand en dessous, avec les heures exactes. Touchez ensuite

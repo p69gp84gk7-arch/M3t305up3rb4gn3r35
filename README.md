@@ -82,6 +82,23 @@ l'altitude restent en haut. L'onglet ouvert est gardé dans le téléphone.
   (dans « Modèles utilisés » et dans le tableau « Par modèle »). En le touchant, une bulle explique
   simplement ce que montre le bloc, ou d'où vient le modèle, sa précision et sa portée.
 
+## Autres sites météo
+
+En bas de l'onglet **Résumé** (et du mode simple), des boutons ouvrent dans un nouvel onglet les pages de
+Superbagnères sur d'autres sites, pour comparer (adresses vérifiées le 22/11/2026) :
+
+| Bouton | Page |
+|---|---|
+| Météo-France | bulletin montagne « Superbagnères 1800 m » (`meteofrance.com/meteo-montagne/superbagneres-1800m/314701`) |
+| Meteociel — Diagramme GFS | diagramme d'ensemble GEFS à 30 scénarios pour Luchon-Superbagnères (42.768 N, 0.577 E) |
+| Meteociel — AROME ensemble | diagramme PE-AROME (ensemble AROME de Météo-France) au même point |
+| Meteociel — AROME heure par heure | prévisions fines AROME, page Luchon-Superbagnères n° 40001 |
+| Meteociel — Tendances | tendances à 10 jours, page n° 40001 |
+| Meteoblue — Semaine / Comparaison des modèles | pages calculées pour les coordonnées et l'**altitude choisie** |
+| Snow-forecast | page de la station, **bas / milieu / haut** selon l'altitude choisie (< 1700 m, < 2100 m, au-dessus) |
+
+Rien n'est récupéré automatiquement de ces sites : ce sont de simples liens.
+
 ## Mode simplifié
 
 Le bouton **Mode simple** en haut à droite affiche seulement l'essentiel pour l'altitude choisie :

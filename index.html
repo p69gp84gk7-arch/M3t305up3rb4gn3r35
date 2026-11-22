@@ -182,6 +182,14 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
 .s-days .pill{display:block;text-align:center;font-weight:900;font-size:.84rem;padding:9px 2px;border-radius:10px;border:2px solid currentColor}
 .s-days .h{font-size:.95rem;line-height:1.25}
 .s-days .h small{display:block;color:var(--muted);font-size:.78rem}
+/* Liens vers les autres sites météo */
+.links{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.links a{display:flex;flex-direction:column;justify-content:center;min-height:64px;padding:10px 12px;border-radius:12px;
+  border:1px solid var(--line);background:var(--card2);color:var(--ink);text-decoration:none;line-height:1.2;position:relative}
+.links a::after{content:"↗";position:absolute;top:8px;right:10px;color:var(--muted);font-size:.85rem}
+.links a b{font-size:.98rem;padding-right:14px}
+.links a small{color:var(--muted);font-size:.76rem;margin-top:3px}
+.links a:active{background:#22344a}
 .hidden{display:none!important}
 </style>
 </head>
@@ -214,6 +222,10 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
       </section>
       <button type="button" class="more" id="btnFull">Voir le détail (mode complet)</button>
     </div>
+    <section class="links-sec">
+      <h2>Autres sites météo — <span class="altName"></span> <button type="button" class="info" data-info="liens" aria-label="Explication" aria-expanded="false">i</button></h2>
+      <div class="links" id="linksSimple"></div>
+    </section>
   </div>
 
   <div class="tab" id="tab-resume" role="tabpanel" aria-labelledby="tb-resume">
@@ -235,6 +247,10 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
         <button type="button" class="more" id="moreWins"></button>
       </section>
     </div>
+    <section class="links-sec">
+      <h2>Autres sites météo — <span class="altName"></span> <button type="button" class="info" data-info="liens" aria-label="Explication" aria-expanded="false">i</button></h2>
+      <div class="links" id="linksFull"></div>
+    </section>
   </div>
 
   <div class="tab hidden" id="tab-graphs" role="tabpanel" aria-labelledby="tb-graphs">
@@ -786,13 +802,36 @@ function fineStart(r, w){
   return {cls:"no", txt: !cold ? "non : trop doux" : (!coldCalm ? "non : trop de vent" : "non : trop court")};
 }
 
+/* ---------- Liens vers les autres sites météo ---------- */
+// adresses vérifiées le 22/11/2026. Meteociel situe Luchon-Superbagnères en 42.768 N, 0.577 E (page n° 40001).
+const MC_PT = "lon=0.577&lat=42.768&ville=Luchon-Superbagneres";
+function siteLinks(){
+  const A = ALTS[selAlt];
+  const mb = (page) => `https://www.meteoblue.com/fr/meteo/${page}/${A.lat.toFixed(3)}N${A.lon.toFixed(3)}E${A.alt}_Europe%2FParis`;
+  const sf = A.alt < 1700 ? ["bot", "bas"] : A.alt < 2100 ? ["mid", "milieu"] : ["top", "haut"];
+  return [
+    {site:"Météo-France", t:"Montagne Superbagnères 1800 m", u:"https://meteofrance.com/meteo-montagne/superbagneres-1800m/314701"},
+    {site:"Meteociel", t:"Diagramme GFS : 30 scénarios", u:"https://www.meteociel.fr/cartes_obs/gens_display.php?ext=1&" + MC_PT},
+    {site:"Meteociel", t:"Diagramme AROME ensemble", u:"https://www.meteociel.fr/cartes_obs/pearome_display.php?" + MC_PT},
+    {site:"Meteociel", t:"AROME heure par heure", u:"https://www.meteociel.fr/previsions-arome-1h/40001/luchon_superbagneres.htm"},
+    {site:"Meteoblue", t:`Semaine à ${A.alt} m`, u:mb("semaine")},
+    {site:"Meteoblue", t:`Comparaison des modèles à ${A.alt} m`, u:mb("prevision/multimodel")},
+    {site:"Snow-forecast", t:`Superbagnères, ${sf[1]} de station`, u:`https://www.snow-forecast.com/resorts/Superbagneres/6day/${sf[0]}`},
+    {site:"Meteociel", t:"Tendances à 10 jours", u:"https://www.meteociel.fr/tendances/40001/luchon_superbagneres.htm"}
+  ];
+}
+function renderLinks(){
+  const html = siteLinks().map(l => `<a href="${esc(l.u)}" target="_blank" rel="noopener"><b>${esc(l.site)}</b><small>${esc(l.t)}</small></a>`).join("");
+  ["linksFull", "linksSimple"].forEach(id => { document.getElementById(id).innerHTML = html; });
+}
+
 /* ---------- Affichage ---------- */
 function renderAlts(){
   const box = document.getElementById("alts");
   box.innerHTML = ALTS.map((a, i) => `<button type="button" data-alt="${i}" aria-pressed="${i === selAlt}"><b>${a.alt}</b><small>${a.name || "m"}</small></button>`).join("");
 }
 function render(){
-  renderAlts(); renderModelPicker();
+  renderAlts(); renderModelPicker(); renderLinks();
   document.querySelectorAll(".altName").forEach(el => el.textContent = ALTS[selAlt].alt + " m");
   document.querySelectorAll(".thrTw").forEach(el => el.textContent = temp(settings.tw).replace("+",""));
   document.querySelectorAll(".thrWind").forEach(el => el.textContent = num(settings.wind, 0) + " km/h");
@@ -1320,6 +1359,12 @@ const INFO = {
     de 40 à 69 % ;</li><li><b class="ans-non">NON</b> : moins de 40 %.</li></ul><p>Les heures indiquent la période où la majorité des
     scénarios dit oui (démarrage → dernière heure favorable). En dessous : la sûreté de la prévision.</p><p>Le calcul suit les seuils et les
     modèles choisis dans le mode complet (onglet Réglages).</p>`],
+  liens: ["Autres sites météo", `<p>Ces boutons ouvrent les pages de Superbagnères sur d'autres sites, dans un nouvel onglet du
+    navigateur, pour comparer.</p><ul><li><b>Météo-France</b> : bulletin montagne officiel de Superbagnères 1800 m.</li>
+    <li><b>Meteociel</b> : le diagramme d'ensemble GFS à 30 scénarios, celui d'AROME ensemble (Météo-France), les prévisions AROME heure par
+    heure et les tendances à 10 jours, pour Luchon-Superbagnères.</li><li><b>Meteoblue</b> : prévisions et comparaison de modèles
+    calculées pour l'altitude choisie.</li><li><b>Snow-forecast</b> : prévisions de la station, en bas, au milieu ou en haut selon l'altitude
+    choisie.</li></ul><p>Ces sites ne font pas le calcul de température humide de cette page : leurs « températures » sont celles de l'air.</p>`],
   missing: ["Modèles indisponibles", `<p>Modèles qui n'ont pas répondu à ce calcul : panne du service, quota gratuit dépassé
     (10 000 demandes par jour et par connexion) ou pas de données pour Superbagnères. Les autres modèles sont utilisés normalement.
     Réessayez plus tard.</p>`]

@@ -114,12 +114,12 @@ footer a{color:var(--ink2)}
 .presets button{min-height:40px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card2);font-size:.88rem}
 .mgroup-t{font-size:.82rem;color:var(--muted);margin:12px 0 6px}
 .chips{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
-.chips button{min-height:48px;text-align:left;border-radius:10px;border:1px solid var(--line);background:var(--card2);padding:6px 10px 6px 34px;position:relative;line-height:1.2;font-size:.9rem}
-.chips button::before{content:"";position:absolute;left:10px;top:50%;width:16px;height:16px;margin-top:-8px;border-radius:4px;border:2px solid var(--muted)}
+.chips button[data-model]{min-height:48px;text-align:left;border-radius:10px;border:1px solid var(--line);background:var(--card2);padding:6px 10px 6px 34px;position:relative;line-height:1.2;font-size:.9rem}
+.chips button[data-model]::before{content:"";position:absolute;left:10px;top:50%;width:16px;height:16px;margin-top:-8px;border-radius:4px;border:2px solid var(--muted)}
 .chips button[aria-pressed="true"]{border-color:var(--accent);background:#1a2c42}
 .chips button[aria-pressed="true"]::before{background:var(--accent);border-color:var(--accent);content:"✓";color:var(--accent-ink);font-size:12px;font-weight:800;text-align:center;line-height:16px}
-.chips button small{display:block;color:var(--muted);font-size:.72rem;margin-top:1px}
-.chips button.off{opacity:.55}
+.chips button[data-model] small{display:block;color:var(--muted);font-size:.72rem;margin-top:1px}
+.chips button[data-model].off{opacity:.55}
 #basis{margin:0 2px 4px}
 .used{color:var(--good);font-weight:800}
 /* Diagramme des scénarios */
@@ -132,6 +132,23 @@ footer a{color:var(--ink2)}
 .conf{display:inline-block;font-size:.75rem;font-weight:700;padding:1px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
 .conf-ok{color:#3fc43f} .conf-mid{color:#fab219} .conf-bad{color:#ec835a} .conf-na{color:var(--muted);font-weight:400}
 .day-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+/* Bulles d'information */
+.info{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;margin-left:6px;vertical-align:2px;
+  border-radius:50%;border:1.5px solid var(--accent);background:none;color:var(--accent);font:italic 700 14px/1 Georgia,serif;padding:0;
+  position:relative;flex:0 0 auto}
+.info::after{content:"";position:absolute;inset:-10px}   /* zone tactile 44 px */
+.info[aria-expanded="true"]{background:var(--accent);color:var(--accent-ink)}
+#bubble{position:absolute;z-index:50;background:#22344a;color:var(--ink);border:1px solid #3b5675;border-radius:12px;
+  padding:12px 14px 12px;box-shadow:0 10px 30px rgba(0,0,0,.5);font-size:.92rem;line-height:1.45}
+#bubble::before{content:"";position:absolute;top:-7px;left:var(--ax,20px);width:12px;height:12px;background:#22344a;
+  border-left:1px solid #3b5675;border-top:1px solid #3b5675;transform:rotate(45deg)}
+#bubble h3{margin:0 28px 6px 0;font-size:1rem}
+#bubble p{margin:6px 0 0;color:var(--ink2)}
+#bubble ul{margin:6px 0 0;padding-left:18px;color:var(--ink2)}
+#bubble .x{position:absolute;top:4px;right:4px;width:36px;height:36px;border:0;background:none;color:var(--ink2);font-size:1.4rem}
+.chip-w{position:relative}
+.chip-w > button[data-model]{width:100%;padding-right:38px}
+.chip-w > .info{position:absolute;right:8px;top:50%;margin:-12px 0 0}
 .hidden{display:none!important}
 </style>
 </head>
@@ -144,13 +161,13 @@ footer a{color:var(--ink2)}
   <div id="status" role="status" aria-live="polite">Appuyez sur « Calculer » pour charger les prévisions.</div>
 
   <section aria-label="Choix de l'altitude">
-    <h2>Altitude</h2>
+    <h2>Altitude <button type="button" class="info" data-info="alt" aria-label="Explication" aria-expanded="false">i</button></h2>
     <div class="alts" id="alts"></div>
   </section>
 
   <section>
     <details id="settingsBox">
-      <summary>Réglages des seuils</summary>
+      <summary>Réglages des seuils <button type="button" class="info" data-info="seuils" aria-label="Explication" aria-expanded="false">i</button></summary>
       <div class="set-row">
         <label for="inTw">Température humide maximale (°C)</label>
         <div class="stepper">
@@ -173,7 +190,7 @@ footer a{color:var(--ink2)}
 
   <section>
     <details id="modelsBox">
-      <summary>Modèles utilisés <span id="modelsSum" class="small muted" style="font-weight:400"></span></summary>
+      <summary>Modèles utilisés <button type="button" class="info" data-info="modeles" aria-label="Explication" aria-expanded="false">i</button> <span id="modelsSum" class="small muted" style="font-weight:400"></span></summary>
       <p class="small muted" style="margin:8px 0 0">Touchez un modèle pour l'ajouter ou l'enlever. Avec plusieurs modèles, la page fait
         la moyenne : chaque modèle compte autant. Tous les résultats ci-dessous suivent ce choix.</p>
       <div class="presets" id="presets"></div>
@@ -187,7 +204,7 @@ footer a{color:var(--ink2)}
   <div id="results" class="hidden">
     <div id="basis" class="small ink2"></div>
     <section id="secDays">
-      <h2>Jour par jour — 1450, 1800 et 2000 m</h2>
+      <h2>Jour par jour — 1450, 1800 et 2000 m <button type="button" class="info" data-info="jours" aria-label="Explication" aria-expanded="false">i</button></h2>
       <div class="small muted" style="margin-bottom:8px">Chances d'avoir au moins 4 h de production dans la journée, et heures
         théoriques de démarrage → arrêt (dernière heure où la majorité des scénarios dit oui).</div>
       <div class="days" id="days"></div>
@@ -195,14 +212,14 @@ footer a{color:var(--ink2)}
     </section>
 
     <section id="secStarts">
-      <h2>Démarrages possibles — <span class="altName"></span></h2>
+      <h2>Démarrages possibles — <span class="altName"></span> <button type="button" class="info" data-info="demarrages" aria-label="Explication" aria-expanded="false">i</button></h2>
       <div id="headline" class="headline"></div>
       <div id="windows"></div>
       <button type="button" class="more" id="moreWins"></button>
     </section>
 
     <section>
-      <h2>Heure par heure — <span class="altName"></span></h2>
+      <h2>Heure par heure — <span class="altName"></span> <button type="button" class="info" data-info="heure" aria-label="Explication" aria-expanded="false">i</button></h2>
       <div class="small muted">Hauteur des barres = chances de pouvoir produire. Touchez une barre pour le détail.</div>
       <div class="chart-wrap">
         <svg class="chart-axis" id="chartAxis" width="34" height="180" aria-hidden="true"></svg>
@@ -213,7 +230,7 @@ footer a{color:var(--ink2)}
     </section>
 
     <section id="secSpag">
-      <h2>Diagramme des scénarios — <span class="altName"></span></h2>
+      <h2>Diagramme des scénarios — <span class="altName"></span> <button type="button" class="info" data-info="spag" aria-label="Explication" aria-expanded="false">i</button></h2>
       <div class="small muted">Chaque ligne fine est un scénario du modèle choisi, comme sur les diagrammes d'ensemble de Meteociel
         (GFS : 30 scénarios + 1 de contrôle, sur 16 jours). Plus les lignes sont serrées, plus la prévision est sûre.</div>
       <div class="seg-ctl" id="spagModels" aria-label="Modèle du diagramme"></div>
@@ -227,20 +244,20 @@ footer a{color:var(--ink2)}
     </section>
 
     <section>
-      <h2>Toutes les altitudes</h2>
+      <h2>Toutes les altitudes <button type="button" class="info" data-info="tblAlts" aria-label="Explication" aria-expanded="false">i</button></h2>
       <div class="small muted" style="margin-bottom:8px">Chances d'avoir au moins 4 h de production dans la journée.</div>
       <div class="tbl-wrap" id="tblAlts"></div>
     </section>
 
     <section>
-      <h2>Par modèle — <span class="altName"></span></h2>
+      <h2>Par modèle — <span class="altName"></span> <button type="button" class="info" data-info="tblModels" aria-label="Explication" aria-expanded="false">i</button></h2>
       <div class="small muted" style="margin-bottom:8px">Modèles d'ensemble : chances d'avoir au moins 4 h dans la journée, et heures où la majorité des scénarios dit oui.
         Modèles fins : nombre d'heures de production prévues, et lesquelles.</div>
       <div class="tbl-wrap" id="tblModels"></div>
     </section>
 
     <section id="secMissing" class="hidden">
-      <h2>Modèles indisponibles</h2>
+      <h2>Modèles indisponibles <button type="button" class="info" data-info="missing" aria-label="Explication" aria-expanded="false">i</button></h2>
       <ul id="missing" class="small ink2" style="margin:0;padding-left:18px"></ul>
     </section>
   </div>
@@ -288,6 +305,8 @@ footer a{color:var(--ink2)}
       <p class="small muted">C'est une aide à la décision : l'observation sur place (sonde, hygromètre, anémomètre) reste la référence.</p>
     </details>
   </section>
+
+  <div id="bubble" class="hidden" role="dialog" aria-modal="false"></div>
 
   <footer>Données météo : <a href="https://open-meteo.com/" rel="noopener">Open-Meteo.com</a> (licence CC BY 4.0)</footer>
 </main>
@@ -892,11 +911,11 @@ function renderModelTable(){
     return `<td class="mod" style="background:${b.c};color:${b.ink}">${n}\u00a0h<small>${hourRanges(hrs)}</small></td>`;
   };
   const used = m => selModels.has(mkey(m.kind, m.id)) ? `<span class="used" title="utilisé dans le calcul">✓</span> ` : "";
-  const ensRows = ens.map(m => `<tr><th>${used(m)}${esc(m.label)}<br><small class="muted">${m.points[selAlt].members.length} scénarios</small></th>${
+  const ensRows = ens.map(m => `<tr><th>${used(m)}${esc(m.label)}${infoBtn("m:ens:" + m.id)}<br><small class="muted">${m.points[selAlt].members.length} scénarios</small></th>${
     m.res[selAlt].day.map(d => d.p == null ? `<td class="mod" style="color:var(--muted)">—</td>` : cellPct(d.p, `<small>${d.typical.length ? hourRanges(d.typical) : "&nbsp;"}</small>`, "mod")).join("")}</tr>`).join("");
   const detRows = det.map(m => {
     const meta = DET_MODELS.find(d => d.id === m.id);
-    return `<tr><th>${used(m)}${esc(m.label)}<br><small class="muted">${meta.res} · ${m.validHours} h</small></th>${days.map((d, di) => detCell(m, di)).join("")}</tr>`;
+    return `<tr><th>${used(m)}${esc(m.label)}${infoBtn("m:det:" + m.id)}<br><small class="muted">${meta.res} · ${m.validHours} h</small></th>${days.map((d, di) => detCell(m, di)).join("")}</tr>`;
   }).join("");
   const sep = t => `<tr><th colspan="${days.length + 1}" style="position:static;background:none;color:var(--muted);font-size:.78rem;padding-top:10px">${t}</th></tr>`;
   document.getElementById("tblModels").innerHTML = `<table><thead><tr><th></th>${dayHead()}</tr></thead><tbody>${
@@ -1078,7 +1097,7 @@ function renderModelPicker(){
     const info = kind === "ens"
       ? (fetched ? fetched.points[REF_IDX].members.length + " scénarios" : "ensemble")
       : m.res + (fetched ? " · " + fetched.validHours + " h de prévision" : "");
-    return `<button type="button" data-model="${k}" aria-pressed="${selModels.has(k)}" class="${st === "off" ? "off" : ""}">${esc(m.label)}<small>${esc(info)}${st === "off" ? " · indisponible" : ""}</small></button>`;
+    return `<div class="chip-w"><button type="button" data-model="${k}" aria-pressed="${selModels.has(k)}" class="${st === "off" ? "off" : ""}">${esc(m.label)}<small>${esc(info)}${st === "off" ? " · indisponible" : ""}</small></button>${infoBtn("m:" + k)}</div>`;
   };
   document.getElementById("chipsEns").innerHTML = ENS_MODELS.map(m => chip("ens", m)).join("");
   document.getElementById("chipsDet").innerHTML = DET_MODELS.map(m => chip("det", m)).join("");
@@ -1097,6 +1116,115 @@ function applyModels(){
   if(results) analyse();
   render();
 }
+
+/* ---------- Bulles d'information ---------- */
+function infoBtn(k){ return `<button type="button" class="info" data-info="${k}" aria-label="Explication" aria-expanded="false">i</button>`; }
+const MODEL_INFO = {
+  "ens:ecmwf_ifs025": "Centre européen (ECMWF). La référence mondiale pour les prévisions à plusieurs jours. 51 scénarios, maille de 25 km, jusqu'à 15 jours.",
+  "ens:ecmwf_aifs025": "Version « intelligence artificielle » du centre européen, apprise sur des dizaines d'années de météo passée. 51 scénarios, 25 km, jusqu'à 15 jours. Bonne sur les grandes situations, moins fine sur le relief.",
+  "ens:gfs_seamless": "Service météo américain (NOAA), ensemble GEFS : c'est le modèle des diagrammes d'ensemble de Meteociel. 31 scénarios (30 + 1 de contrôle), 25 km puis 50 km après 10 jours, jusqu'à 16 jours.",
+  "ens:icon_seamless_eps": "Service météo allemand (DWD). 40 scénarios, maille plus serrée sur l'Europe. S'arrête vers 7 jours et demi.",
+  "ens:gem_global": "Service météo canadien. 21 scénarios, jusqu'à 16 jours. Maille large : utile surtout pour la tendance.",
+  "ens:ukmo_global_ensemble_20km": "Service météo britannique (Met Office). 18 scénarios, 20 km, jusqu'à 10 jours.",
+  "det:meteofrance_arome_france_hd": "Météo-France, le plus précis pour la montagne : maille de 1,5 km, le relief des Pyrénées est bien dessiné. Environ 2 jours et demi. À privilégier pour décider d'un démarrage proche.",
+  "det:meteofrance_arome_france": "Météo-France, même modèle qu'AROME HD avec une maille de 2,5 km. Environ 2 jours et demi.",
+  "det:dmi_harmonie_arome_europe": "Service météo danois, modèle de la même famille qu'AROME. Maille de 2 km, environ 3 jours.",
+  "det:knmi_harmonie_arome_europe": "Service météo néerlandais, famille AROME. Maille de 5,5 km, environ 3 jours.",
+  "det:icon_eu": "Service météo allemand, version Europe. Maille de 7 km, environ 5 jours.",
+  "det:meteofrance_arpege_europe": "Météo-France, modèle Europe qui prend le relais d'AROME. Maille de 10 km, environ 4 jours et demi.",
+  "det:ukmo_global_deterministic_10km": "Service météo britannique, run principal. Maille de 10 km, environ 7 jours.",
+  "det:meteofrance_seamless": "Mélange automatique Météo-France : AROME HD au début, puis ARPEGE. Environ 4 jours et demi.",
+  "det:ecmwf_ifs025": "Run principal du centre européen (version gratuite à 25 km). Jusqu'à 15 jours.",
+  "det:ecmwf_aifs025_single": "Run principal de la version « intelligence artificielle » du centre européen. 25 km, jusqu'à 15 jours.",
+  "det:icon_global": "Run principal allemand, monde entier. Maille de 13 km, environ 7 jours et demi.",
+  "det:gfs_global": "Run principal américain, celui que Meteociel appelle « opérationnel ». Maille de 13 km, jusqu'à 16 jours.",
+  "det:gfs_graphcast025": "Modèle « intelligence artificielle » de Google, basé sur le GFS. Ne fournit souvent pas de données pour Superbagnères.",
+  "det:gem_global": "Run principal canadien. Maille de 15 km, environ 10 jours.",
+  "det:kma_gdps": "Service météo coréen. Ne fournit souvent pas de données pour Superbagnères.",
+  "det:cma_grapes_global": "Service météo chinois. Maille de 15 km, environ 5 jours.",
+  "det:jma_gsm": "Service météo japonais. Maille large (55 km) : le relief est très lissé, peu adapté à la montagne."
+};
+const INFO = {
+  alt: ["Altitude", `<p>Les 6 points du domaine, du bas de station (1450 m) au haut (2200 m). Pour chaque point, les prévisions sont
+    corrigées à l'altitude exacte : en général, plus on monte, plus il fait froid.</p><p>Le bouton choisi commande les blocs marqués
+    « — 1800 m » (par exemple). Il est gardé dans le téléphone.</p>`],
+  seuils: ["Réglages des seuils", `<p>La production est jugée possible quand, à la même heure :</p><ul><li>la température humide est
+    au plus au seuil (−2,5 °C par défaut) ;</li><li>le vent à 10 m est au plus au seuil (15 km/h par défaut).</li></ul>
+    <p>Adaptez-les à vos enneigeurs : un seuil plus froid (−3 °C) donne moins d'heures, mais de la neige de meilleure qualité.</p>`],
+  modeles: ["Modèles utilisés", `<p><b>Ensembles</b> : chaque centre météo calcule 18 à 51 prévisions un peu différentes
+    (« scénarios »). La part des scénarios qui disent oui donne un vrai pourcentage de chances.</p><p><b>Déterministes</b> : un seul
+    scénario (oui ou non), souvent plus précis à court terme, surtout AROME HD.</p><p>Si vous cochez plusieurs modèles, la page fait la
+    moyenne : chaque modèle compte autant. Touchez le « i » d'un modèle pour savoir d'où il vient et jusqu'où il va.</p>`],
+  jours: ["Jour par jour", `<p>Une carte par jour, pour 3 altitudes. Sur le petit schéma de la pente, chaque point est coloré
+    selon les chances.</p><ul><li><b>Le %</b> : chances d'avoir au moins 4 h de production dans la journée.</li><li><b>21 h → 8 h</b> :
+    heures théoriques de démarrage et d'arrêt (dernière heure favorable), quand au moins la moitié des scénarios disent oui pendant 3 h
+    ou plus. « veille » : la production a commencé la veille ; « lendemain » : elle s'arrête le lendemain.</li><li><b>Le badge</b> :
+    sûreté de la prévision. <span class="conf conf-ok">✔ sûre</span> quand les scénarios sont d'accord,
+    <span class="conf conf-bad">? incertaine</span> quand ils se contredisent.</li></ul>`],
+  demarrages: ["Démarrages possibles", `<p>Les périodes d'au moins 3 h où la majorité des scénarios disent « production possible »,
+    pour l'altitude choisie.</p><ul><li><b>% au plus haut</b> : les meilleures chances pendant la période.</li><li><b>Au démarrage /
+    au plus froid</b> : températures typiques (valeur du milieu des scénarios).</li><li><b>Modèles fins</b> (dans les 48 h) : l'heure
+    de démarrage selon AROME HD et les autres modèles précis, avec l'écart par rapport aux ensembles.</li></ul>`],
+  heure: ["Heure par heure", `<p>Une barre par heure : plus elle est haute et claire, plus les chances de pouvoir produire sont
+    grandes. La ligne pointillée marque 50 %.</p><p>En dessous, la ligne verte indique les heures où AROME HD dit oui. Touchez une
+    barre pour voir les températures et le vent. Faites glisser pour voir les jours suivants.</p>`],
+  spag: ["Diagramme des scénarios", `<p>Comme les diagrammes d'ensemble de Meteociel : chaque ligne fine est un scénario du modèle
+    choisi, la ligne blanche est la médiane, la violette le run principal.</p><p><b>Zone de sûreté</b> (bande claire) : 8 scénarios
+    sur 10 sont dedans. Étroite = le modèle est sûr ; large = il hésite. Sous chaque jour : ✔ sûr, ~ moyen ou ? incertain.</p>
+    <p>La bande colorée du bas donne la part des scénarios qui disent « production possible ».</p>`],
+  tblAlts: ["Toutes les altitudes", `<p>Chaque case : chances d'avoir au moins 4 h de production dans la journée, pour une altitude
+    (lignes) et un jour (colonnes). Plus la case est claire, plus c'est favorable.</p><p>La ligne encadrée est l'altitude choisie.
+    « (reste) » : pour aujourd'hui, seules les heures restantes comptent. Faites glisser le tableau pour voir les 16 jours.</p>`],
+  tblModels: ["Par modèle", `<p>Le détail de chaque modèle pour l'altitude choisie, jour par jour.</p><ul><li><b>Ensembles</b> :
+    % de scénarios avec au moins 4 h de production, et en petit les heures où la majorité dit oui.</li><li><b>Déterministes</b> :
+    nombre d'heures de production prévues, et lesquelles. « — » : le modèle ne va pas jusque-là.</li></ul><p>✓ vert : modèle
+    utilisé dans le calcul. Touchez le « i » d'un modèle pour sa description.</p>`],
+  missing: ["Modèles indisponibles", `<p>Modèles qui n'ont pas répondu à ce calcul : panne du service, quota gratuit dépassé
+    (10 000 demandes par jour et par connexion) ou pas de données pour Superbagnères. Les autres modèles sont utilisés normalement.
+    Réessayez plus tard.</p>`]
+};
+function infoContent(k){
+  if(k.startsWith("m:")){
+    const key = k.slice(2), [kind, id] = key.split(":");
+    const meta = (kind === "ens" ? ENS_MODELS : DET_MODELS).find(m => m.id === id);
+    const got = models.find(m => m.kind === kind && m.id === id);
+    let extra = "";
+    if(got) extra = `<p>Dans ce calcul : ${kind === "ens" ? got.points[REF_IDX].members.length + " scénarios, " : ""}prévisions pour les ${got.validHours} prochaines heures.</p>`;
+    else if(missing.some(m => m.kind === kind && m.id === id)) extra = `<p>Indisponible pour ce calcul.</p>`;
+    return [meta.label + (kind === "ens" ? " · ensemble" : " · déterministe"), `<p>${MODEL_INFO[key] || ""}</p>${extra}`];
+  }
+  return INFO[k];
+}
+let bubbleBtn = null;
+function closeBubble(){
+  document.getElementById("bubble").classList.add("hidden");
+  if(bubbleBtn){ bubbleBtn.setAttribute("aria-expanded", "false"); bubbleBtn = null; }
+}
+function openBubble(btn){
+  const c = infoContent(btn.dataset.info); if(!c) return;
+  closeBubble();
+  const b = document.getElementById("bubble");
+  b.innerHTML = `<button type="button" class="x" aria-label="Fermer">×</button><h3>${esc(c[0])}</h3>${c[1]}`;
+  b.classList.remove("hidden");
+  const r = btn.getBoundingClientRect(), w = Math.min(340, innerWidth - 32);
+  const left = Math.max(16, Math.min(r.left + r.width / 2 - 28, innerWidth - w - 16));
+  b.style.width = w + "px";
+  b.style.left = (left + scrollX) + "px";
+  b.style.top = (r.bottom + scrollY + 10) + "px";
+  b.style.setProperty("--ax", Math.max(10, Math.min(w - 22, r.left + r.width / 2 - left - 6)) + "px");
+  btn.setAttribute("aria-expanded", "true"); bubbleBtn = btn;
+  // si la bulle dépasse en bas de l'écran, on fait défiler juste ce qu'il faut
+  const br = b.getBoundingClientRect();
+  if(br.bottom > innerHeight - 8) scrollBy({top: br.bottom - innerHeight + 16, behavior: "smooth"});
+}
+// en phase de capture : le « i » placé dans un titre dépliable ne doit pas ouvrir/fermer le bloc
+document.addEventListener("click", ev => {
+  const i = ev.target.closest(".info");
+  if(i){ ev.preventDefault(); ev.stopPropagation(); i === bubbleBtn ? closeBubble() : openBubble(i); return; }
+  if(ev.target.closest("#bubble .x") || !ev.target.closest("#bubble")) closeBubble();
+}, true);
+document.addEventListener("keydown", ev => { if(ev.key === "Escape") closeBubble(); });
+addEventListener("resize", closeBubble);
 
 /* ---------- Réglages ---------- */
 function syncInputs(){ document.getElementById("inTw").value = settings.tw; document.getElementById("inWind").value = settings.wind; }

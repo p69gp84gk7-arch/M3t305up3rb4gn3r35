@@ -45,6 +45,22 @@ l'écran d'accueil (PNG 192 et 512 px) en sont tirées automatiquement.
 
 La page s'ouvre alors comme une application. Il faut une connexion internet pour calculer.
 
+## Téléphone, tablette et ordinateur
+
+La même page s'adapte à la taille de l'écran :
+
+- **Téléphone** : une colonne, barre d'onglets en bas de l'écran (au pouce).
+- **Tablette** (à partir de 700 px de large) : les 6 altitudes sur une ligne, le bouton Calculer à côté de l'état
+  des prévisions, les fenêtres de démarrage et les cartes sur 2 colonnes, calendrier plus grand, liens sur 4 colonnes.
+- **Ordinateur et tablette en paysage** (à partir de 1100 px) : onglets en haut comme une application de bureau,
+  page plus large et blocs côte à côte :
+  - Résumé : « Jour par jour » à gauche, « Démarrages possibles » à droite ;
+  - Calendrier : le calendrier et le détail du jour à gauche, le temps de fonctionnement à droite ;
+  - Réglages : seuils et « Comment c'est calculé » à gauche, modèles utilisés à droite ;
+  - mode simple : « maintenant » et « prochain démarrage » côte à côte.
+
+Avec une souris, les boutons s'éclairent au survol.
+
 ## Ce que montre la page
 
 La page est rangée en **5 onglets**, avec une barre en bas de l'écran. Le bouton **Calculer** et le choix de

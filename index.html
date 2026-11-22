@@ -255,6 +255,59 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
 .tf-chips button{min-height:38px;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:none;color:var(--muted);font-size:.84rem}
 .tf-chips button[aria-pressed="true"]{background:#1a2c42;border-color:var(--accent);color:var(--ink)}
 .tf-chips button[aria-pressed="true"]::before{content:"✓ ";color:var(--accent)}
+/* ---------- Tablette et ordinateur ---------- */
+@media (hover:hover){
+  .alts button:hover,.presets button:hover,.seg-ctl button:hover,.tf-chips button:hover,.upd-btn:hover,.mode-btn:hover,
+  .links a:hover,.cc[data-d]:hover,.tabbar button:hover,.chips button[data-model]:hover{filter:brightness(1.18)}
+  .cal-r:hover .t{outline:1px solid #3b5675}
+}
+/* Tablette (à partir de 700 px de large) */
+@media (min-width:700px){
+  main{max-width:1000px;padding-left:24px;padding-right:24px}
+  .calc-row{display:grid;grid-template-columns:minmax(240px,340px) 1fr;gap:18px;align-items:center;margin-top:8px}
+  .calc-row .status-row{align-items:center}
+  .calc-row #status{margin-top:0}
+  .alts{grid-template-columns:repeat(6,1fr)}
+  #windows{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  #windows .win{margin:0}
+  .links{grid-template-columns:repeat(4,1fr)}
+  #simple .res{display:grid;grid-template-columns:1fr 1fr;gap:0 14px;align-items:stretch}
+  #simple .res > section, #simple .res > .more{grid-column:1 / -1}
+  .s-days li{grid-template-columns:150px 140px 1fr}
+  .cc{min-height:92px}
+  .cc .ml{height:4px}
+  .cc .ml.sa{height:7px}
+  .cc .num{font-size:.95rem}
+  .cc .h{font-size:.75rem}
+  .ct-row{grid-template-columns:160px 1fr 60px}
+}
+/* Ordinateur et tablette en paysage (à partir de 1100 px) : onglets en haut, blocs côte à côte */
+@media (min-width:1100px){
+  main{max-width:1320px;padding-top:6px}
+  body{padding-top:64px;padding-bottom:0}
+  body.simple{padding-top:0}
+  .tabbar{top:0;bottom:auto;left:0;right:0;width:auto;transform:none;display:flex;justify-content:center;gap:6px;
+    padding:7px 16px;border:0;border-bottom:1px solid var(--line);border-radius:0}
+  .tabbar button{flex-direction:row;gap:8px;min-height:48px;padding:0 20px;font-size:.95rem}
+  .tabbar button svg{width:22px;height:22px}
+  #tab-resume .res{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:0 18px;align-items:start}
+  #tab-resume .res > #basis{grid-column:1 / -1}
+  #windows{grid-template-columns:1fr}
+  #tab-cal .res{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:0 18px;align-items:start}
+  #tab-reglages{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:0 18px;align-items:start;
+    grid-template-rows:auto 1fr;grid-template-areas:"seuils modeles" "calc modeles"}
+  #tab-reglages > section:nth-of-type(1){grid-area:seuils}
+  #tab-reglages > section:nth-of-type(2){grid-area:modeles}
+  #tab-reglages > section:nth-of-type(3){grid-area:calc}
+  #simple{max-width:1100px;margin:0 auto}
+  .cc{min-height:104px;padding:6px 6px 6px}
+  .cc .mini{gap:3px}
+  .cc .ml{height:5px}
+  .cc .ml.sa{height:8px}
+  .cal-r{height:22px}
+  .cal-r .t{height:15px}
+  .cal-r .a,.cal-r .h{font-size:.82rem}
+}
 .hidden{display:none!important}
 </style>
 </head>
@@ -266,10 +319,12 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
   </div>
   <p class="sub">Quand démarrer la production de neige à Superbagnères</p>
 
-  <button id="btnCalc" type="button">Calculer</button>
-  <div class="status-row">
-    <div id="status" role="status" aria-live="polite">Appuyez sur « Calculer » pour charger les prévisions.</div>
-    <button type="button" id="btnUpdate" class="upd-btn" title="Recharger l'application et les prévisions">⟳ Mettre à jour</button>
+  <div class="calc-row">
+    <button id="btnCalc" type="button">Calculer</button>
+    <div class="status-row">
+      <div id="status" role="status" aria-live="polite">Appuyez sur « Calculer » pour charger les prévisions.</div>
+      <button type="button" id="btnUpdate" class="upd-btn" title="Recharger l'application et les prévisions">⟳ Mettre à jour</button>
+    </div>
   </div>
 
   <div id="altBox">
@@ -1139,6 +1194,8 @@ function renderSimple(){
 function setMode(simple){
   document.body.classList.toggle("simple", simple);
   document.getElementById("simple").classList.toggle("hidden", !simple);
+  // l'altitude est masquée seulement dans l'onglet Réglages du mode complet
+  document.getElementById("altBox").classList.toggle("hidden", !simple && curTab === "reglages");
   const b = document.getElementById("btnMode");
   b.setAttribute("aria-pressed", simple); b.textContent = simple ? "Mode complet" : "Mode simple";
   saveJSON(STORE_MODE, simple ? "simple" : "complet");

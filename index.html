@@ -1,0 +1,760 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Neige SB</title>
+<meta name="description" content="Quand démarrer la production de neige à Superbagnères, selon l'altitude.">
+<meta name="application-name" content="Neige SB">
+<meta name="apple-mobile-web-app-title" content="Neige SB">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b121a">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%230f2236'/%3E%3Ctext x='50' y='54' font-size='70' text-anchor='middle' dominant-baseline='middle'%3E%E2%9D%84%EF%B8%8F%3C/text%3E%3C/svg%3E">
+<link id="touchIcon" rel="apple-touch-icon" href="">
+<link id="manifestLink" rel="manifest" href="">
+<style>
+:root{
+  --bg:#0b121a; --card:#141e29; --card2:#1b2734; --line:#2a3846;
+  --ink:#e8eef5; --ink2:#b3c1d0; --muted:#8597ab;
+  --accent:#6da7ec; --accent-ink:#0b1520;
+  --good:#3fc43f; --warn:#fab219; --bad:#ec835a; --excellent:#b7d3f6;
+  --s0:#26313d; --s1:#184f95; --s2:#256abf; --s3:#3987e5; --s4:#6da7ec; --s5:#b7d3f6;
+  --r:14px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+main{max-width:760px;margin:0 auto;padding:12px 16px 40px}
+h1{font-size:1.5rem;margin:8px 0 0;letter-spacing:.2px}
+h2{font-size:1.15rem;margin:0 0 10px}
+.sub{color:var(--muted);margin:2px 0 14px;font-size:.95rem}
+section,.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin:14px 0}
+button{font:inherit;color:inherit;cursor:pointer}
+#btnCalc{width:100%;min-height:64px;border:0;border-radius:var(--r);background:var(--accent);color:var(--accent-ink);font-size:1.35rem;font-weight:700;letter-spacing:.3px}
+#btnCalc:disabled{opacity:.6}
+#btnCalc:active{transform:scale(.99)}
+#status{color:var(--ink2);font-size:.92rem;margin:8px 2px 0;min-height:1.3em}
+#status.err{color:var(--bad)}
+.alts{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.alts button{min-height:60px;border-radius:12px;border:1px solid var(--line);background:var(--card2);padding:6px 2px;line-height:1.15}
+.alts button b{display:block;font-size:1.1rem}
+.alts button small{display:block;color:var(--muted);font-size:.7rem;margin-top:2px}
+.alts button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.alts button[aria-pressed="true"] small{color:var(--accent-ink)}
+details>summary{cursor:pointer;font-weight:600;list-style:none;display:flex;align-items:center;gap:8px;min-height:32px}
+details>summary::-webkit-details-marker{display:none}
+details>summary::before{content:"▸";color:var(--muted);transition:transform .15s}
+details[open]>summary::before{transform:rotate(90deg)}
+.set-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0}
+.set-row label{flex:1;font-size:.95rem}
+.stepper{display:flex;align-items:center;gap:4px}
+.stepper button{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--card2);font-size:1.3rem}
+.stepper input{width:76px;height:44px;text-align:center;font:inherit;font-weight:700;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px}
+.link{background:none;border:0;color:var(--accent);padding:0;text-decoration:underline;font-size:.9rem}
+.headline{font-size:1.1rem;font-weight:600}
+.headline .big{font-size:1.45rem;display:block;margin-top:2px}
+.muted{color:var(--muted)} .ink2{color:var(--ink2)}
+.small{font-size:.85rem}
+.win{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0}
+.win-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.win-when{font-weight:700;font-size:1.05rem}
+.win-pct{font-size:1.6rem;font-weight:800;line-height:1;text-align:right;white-space:nowrap}
+.win-pct small{display:block;font-size:.7rem;font-weight:500;color:var(--muted)}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin-top:10px;font-size:.93rem}
+.kv dt{color:var(--muted)} .kv dd{margin:0}
+.lvl{display:inline-block;font-size:.75rem;font-weight:700;padding:1px 7px;border-radius:999px;margin-left:4px;vertical-align:1px;border:1px solid currentColor}
+.lvl-warm{color:var(--muted)} .lvl-limit{color:var(--warn)} .lvl-prod{color:var(--good)} .lvl-exc{color:var(--excellent)}
+.fine{margin-top:10px;border-top:1px dashed var(--line);padding-top:8px}
+.fine-t{font-size:.85rem;color:var(--muted);margin-bottom:4px}
+.fine ul{list-style:none;margin:0;padding:0;font-size:.92rem}
+.fine li{display:flex;justify-content:space-between;gap:8px;padding:3px 0}
+.fine li .n{font-weight:600}
+.fine li.prio .n::after{content:" ★";color:var(--accent)}
+.yes{color:var(--good)} .no{color:var(--bad)} .na{color:var(--muted)}
+.chart-wrap{display:flex;margin-top:6px}
+.chart-axis{flex:0 0 34px}
+.chart-scroll{overflow-x:auto;flex:1;-webkit-overflow-scrolling:touch;border-left:1px solid var(--line)}
+.chart-scroll svg{display:block}
+#chartInfo{margin-top:8px;font-size:.92rem;min-height:2.8em;color:var(--ink2)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:.8rem;color:var(--ink2);margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:4px}
+.tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -4px}
+table{border-collapse:separate;border-spacing:2px;font-size:.88rem;min-width:100%}
+th,td{padding:6px 5px;text-align:center;border-radius:6px;white-space:nowrap}
+thead th{color:var(--muted);font-weight:600;font-size:.8rem}
+tbody th{text-align:left;position:sticky;left:0;background:var(--card);font-weight:600;z-index:1;white-space:normal;min-width:64px;max-width:112px;font-size:.82rem;line-height:1.2}
+td.c{font-weight:700;min-width:46px}
+td.mod{min-width:70px;line-height:1.2}
+td.mod small{display:block;font-weight:400;font-size:.72rem;opacity:.85}
+td.sel-alt{outline:2px solid var(--ink);outline-offset:-2px}
+.how p,.how li{color:var(--ink2);font-size:.95rem}
+.how ul{padding-left:20px}
+footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:20px}
+footer a{color:var(--ink2)}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <h1>❄️ Neige SB</h1>
+  <p class="sub">Quand démarrer la production de neige à Superbagnères</p>
+
+  <button id="btnCalc" type="button">Calculer</button>
+  <div id="status" role="status" aria-live="polite">Appuyez sur « Calculer » pour charger les prévisions.</div>
+
+  <section aria-label="Choix de l'altitude">
+    <h2>Altitude</h2>
+    <div class="alts" id="alts"></div>
+  </section>
+
+  <section>
+    <details id="settingsBox">
+      <summary>Réglages des seuils</summary>
+      <div class="set-row">
+        <label for="inTw">Température humide maximale (°C)</label>
+        <div class="stepper">
+          <button type="button" data-step="tw" data-d="-0.5" aria-label="Baisser">−</button>
+          <input id="inTw" type="number" inputmode="decimal" step="0.5" min="-10" max="2">
+          <button type="button" data-step="tw" data-d="0.5" aria-label="Monter">+</button>
+        </div>
+      </div>
+      <div class="set-row">
+        <label for="inWind">Vent maximum à 10 m (km/h)</label>
+        <div class="stepper">
+          <button type="button" data-step="wind" data-d="-1" aria-label="Baisser">−</button>
+          <input id="inWind" type="number" inputmode="numeric" step="1" min="0" max="80">
+          <button type="button" data-step="wind" data-d="1" aria-label="Monter">+</button>
+        </div>
+      </div>
+      <button type="button" class="link" id="btnReset">Revenir aux valeurs par défaut (−2,5 °C et 15 km/h)</button>
+    </details>
+  </section>
+
+  <div id="results" class="hidden">
+    <section id="secStarts">
+      <h2>Démarrages possibles — <span class="altName"></span></h2>
+      <div id="headline" class="headline"></div>
+      <div id="windows"></div>
+    </section>
+
+    <section>
+      <h2>Heure par heure — <span class="altName"></span></h2>
+      <div class="small muted">Hauteur des barres = chances de pouvoir produire. Touchez une barre pour le détail.</div>
+      <div class="chart-wrap">
+        <svg class="chart-axis" id="chartAxis" width="34" height="180" aria-hidden="true"></svg>
+        <div class="chart-scroll" id="chartScroll"></div>
+      </div>
+      <div id="chartInfo"></div>
+      <div class="legend" id="chartLegend"></div>
+    </section>
+
+    <section>
+      <h2>Toutes les altitudes</h2>
+      <div class="small muted" style="margin-bottom:8px">Chances d'avoir au moins 4 h de production dans la journée.</div>
+      <div class="tbl-wrap" id="tblAlts"></div>
+    </section>
+
+    <section>
+      <h2>Par modèle — <span class="altName"></span></h2>
+      <div class="small muted" style="margin-bottom:8px">Modèles d'ensemble : chances d'avoir au moins 4 h dans la journée, et heures où la majorité des scénarios dit oui.
+        Modèles fins : nombre d'heures de production prévues, et lesquelles.</div>
+      <div class="tbl-wrap" id="tblModels"></div>
+    </section>
+
+    <section id="secMissing" class="hidden">
+      <h2>Modèles indisponibles</h2>
+      <ul id="missing" class="small ink2" style="margin:0;padding-left:18px"></ul>
+    </section>
+  </div>
+
+  <section class="how">
+    <details>
+      <summary>Comment c'est calculé</summary>
+      <p><b>1. Les prévisions.</b> Au moment où vous appuyez sur « Calculer », la page demande les prévisions heure par heure à Open-Meteo
+        (service gratuit) pour les 5 altitudes de la station : température de l'air, humidité et vent à 10 m. Les prévisions sont
+        corrigées pour l'altitude exacte de chaque point. Rien n'est enregistré sur un serveur.</p>
+      <p><b>2. La température humide.</b> C'est la température qui compte pour faire de la neige : plus l'air est sec, plus elle est
+        basse que la température de l'air. Elle est calculée à partir de la température, de l'humidité et de la pression de l'air à
+        l'altitude (plus faible en haut).
+        Exemple : 0 °C et 50 % d'humidité à 1800 m donnent <b id="checkTw">…</b> de température humide.</p>
+      <p><b>3. Production possible</b> si, en même temps :</p>
+      <ul>
+        <li>la température humide est inférieure ou égale à <b class="thrTw">−2,5 °C</b> ;</li>
+        <li>le vent à 10 m est inférieur ou égal à <b class="thrWind">15 km/h</b>.</li>
+      </ul>
+      <p>Ces deux seuils se changent dans « Réglages des seuils ». Niveaux affichés :
+        <span class="lvl lvl-limit">limite</span> de −2,5 à −3 °C,
+        <span class="lvl lvl-prod">production</span> à −3 °C ou moins,
+        <span class="lvl lvl-exc">excellent</span> à −6 °C ou moins.</p>
+      <p><b>4. Les chances en %.</b> Plusieurs centres météo (européen, américain, allemand, canadien, britannique…) font
+        chacun des dizaines de prévisions légèrement différentes, appelées « scénarios ». Pour chaque heure, on regarde la part
+        des scénarios qui disent « production possible ». Chaque centre compte autant, quel que soit son nombre de scénarios.</p>
+      <p><b>Températures affichées.</b> Ce sont des valeurs typiques : la valeur du milieu de tous les scénarios. Au démarrage d'une
+        fenêtre, elle peut donc être un peu au-dessus du seuil alors que la moitié des scénarios est déjà assez froide.</p>
+      <p><b>5. Les démarrages.</b> Une fenêtre commence à la première heure où au moins la moitié des scénarios disent oui, et
+        s'arrête à la dernière heure où c'est encore le cas. On ne garde que les fenêtres d'au moins 3 heures.</p>
+      <p><b>6. Les modèles fins.</b> Pour les 48 prochaines heures, on ajoute l'avis des modèles à maille fine, plus précis en
+        montagne à court terme, en particulier AROME HD de Météo-France (1,5 km). Ils ne donnent qu'un seul scénario : oui ou non.</p>
+      <p class="small muted">C'est une aide à la décision : l'observation sur place (sonde, hygromètre, anémomètre) reste la référence.</p>
+    </details>
+  </section>
+
+  <footer>Données météo : <a href="https://open-meteo.com/" rel="noopener">Open-Meteo.com</a> (licence CC BY 4.0)</footer>
+</main>
+
+<script>
+"use strict";
+
+/* ---------- Configuration ---------- */
+const ALTS = [
+  {alt:1800, lat:42.7576, lon:0.5747, name:"front de neige"},
+  {alt:1900, lat:42.7530, lon:0.5650, name:""},
+  {alt:2000, lat:42.7480, lon:0.5560, name:""},
+  {alt:2100, lat:42.7440, lon:0.5480, name:""},
+  {alt:2200, lat:42.7395, lon:0.5410, name:"haut"}
+];
+const ENS_API = "https://ensemble-api.open-meteo.com/v1/ensemble";
+const DET_API = "https://api.open-meteo.com/v1/forecast";
+const VARS = "temperature_2m,relative_humidity_2m,wind_speed_10m";
+const ENS_MODELS = [
+  {id:"ecmwf_ifs025", label:"ECMWF (Europe)"},
+  {id:"ecmwf_aifs025", label:"ECMWF IA (Europe)"},
+  {id:"gfs025", label:"GFS (États-Unis)"},
+  {id:"icon_seamless_eps", label:"ICON (Allemagne)"},
+  {id:"gem_global", label:"GEM (Canada)"},
+  {id:"ukmo_global_ensemble_20km", label:"UKMO (Royaume-Uni)"}
+];
+// fine : modèle à maille fine affiché dans les fenêtres des 48 h.
+// italia_meteo_arpae_icon_2i est exclu : il ne couvre pas Superbagnères (« No data is available for this location »).
+const DET_MODELS = [
+  {id:"meteofrance_arome_france_hd", label:"AROME HD", res:"1,5 km", fine:true, prio:true},
+  {id:"meteofrance_arome_france", label:"AROME", res:"2,5 km", fine:true},
+  {id:"dmi_harmonie_arome_europe", label:"HARMONIE (Danemark)", res:"2 km", fine:true},
+  {id:"knmi_harmonie_arome_europe", label:"HARMONIE (Pays-Bas)", res:"5,5 km", fine:true},
+  {id:"icon_eu", label:"ICON-EU (Allemagne)", res:"7 km", fine:true},
+  {id:"meteofrance_arpege_europe", label:"ARPEGE", res:"10 km", fine:true},
+  {id:"ukmo_global_deterministic_10km", label:"UKMO", res:"10 km", fine:true},
+  {id:"meteofrance_seamless", label:"Météo-France (mixte)", res:"1,5 à 25 km"},
+  {id:"ecmwf_ifs025", label:"ECMWF", res:"25 km"},
+  {id:"ecmwf_aifs025_single", label:"ECMWF IA", res:"25 km"},
+  {id:"icon_global", label:"ICON", res:"13 km"},
+  {id:"gfs_global", label:"GFS", res:"13 km"},
+  {id:"gfs_graphcast025", label:"GraphCast (Google IA)", res:"25 km"},
+  {id:"gem_global", label:"GEM", res:"15 km"},
+  {id:"kma_gdps", label:"KMA (Corée)", res:"12 km"},
+  {id:"cma_grapes_global", label:"CMA (Chine)", res:"15 km"},
+  {id:"jma_gsm", label:"JMA (Japon)", res:"55 km"}
+];
+const DEFAULTS = {tw:-2.5, wind:15};
+const MIN_WINDOW_H = 3, DAY_MIN_H = 4, FINE_HORIZON_H = 48;
+const STORE_KEY = "neigeSB.reglages";
+const STORE_ALT = "neigeSB.altitude";
+
+/* ---------- Stockage local (réglages) ---------- */
+function loadJSON(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
+function saveJSON(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+const settings = Object.assign({}, DEFAULTS);
+(function(){ const s = loadJSON(STORE_KEY);
+  if(s && isFinite(s.tw)) settings.tw = +s.tw;
+  if(s && isFinite(s.wind)) settings.wind = +s.wind; })();
+let selAlt = 0;
+(function(){ const a = loadJSON(STORE_ALT); if(Number.isInteger(a) && a>=0 && a<ALTS.length) selAlt = a; })();
+
+/* ---------- Physique ---------- */
+function pressureAt(alt){ return 1013.25 * Math.pow(1 - 2.25577e-5 * alt, 5.25588); }
+function es(T){ return 6.112 * Math.exp(17.62 * T / (243.12 + T)); }
+function wetBulb(T, RH, P){
+  if(T == null || RH == null) return null;
+  const rh = Math.min(Math.max(RH, 0.5), 100);
+  const e = rh / 100 * es(T);
+  let lo = -70, hi = T;
+  for(let i = 0; i < 40; i++){
+    const tw = (lo + hi) / 2;
+    const f = es(tw) - 0.00066 * (1 + 0.00115 * tw) * P * (T - tw) - e;
+    if(f > 0) hi = tw; else lo = tw;
+  }
+  return (lo + hi) / 2;
+}
+
+/* ---------- Formatage ---------- */
+const DOW = ["dim.","lun.","mar.","mer.","jeu.","ven.","sam."];
+function num(v, d=1){ if(v == null || !isFinite(v)) return "—"; const s = Math.abs(v).toFixed(d).replace(".", ","); return (v < 0 && +s.replace(",",".") !== 0 ? "−" : "") + s; }
+function temp(v){ if(v == null) return "—"; const r = Math.round(v*10)/10; return (r > 0 ? "+" : "") + num(r) + "\u00a0°C"; }
+function pctTxt(p){ return p == null ? "—" : Math.round(p*100) + "\u00a0%"; }
+function dayKey(t){ return t.slice(0,10); }
+function hourOf(t){ return parseInt(t.slice(11,13), 10); }
+let todayKey = "", tomorrowKey = "";
+function dayLabel(k, short){
+  if(!short){ if(k === todayKey) return "aujourd'hui"; if(k === tomorrowKey) return "demain"; }
+  const [y,m,d] = k.split("-").map(Number);
+  return DOW[new Date(Date.UTC(y, m-1, d)).getUTCDay()] + " " + d;
+}
+function whenTxt(t){ return dayLabel(dayKey(t)) + " à " + hourOf(t) + " h"; }
+function cap(s){ return s.charAt(0).toUpperCase() + s.slice(1); }
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function level(tw){
+  if(tw == null) return {cls:"lvl-warm", txt:"—"};
+  if(tw <= -6) return {cls:"lvl-exc", txt:"excellent"};
+  if(tw <= -3 && tw <= settings.tw) return {cls:"lvl-prod", txt:"production"};
+  if(tw <= settings.tw) return {cls:"lvl-limit", txt:"limite"};
+  return {cls:"lvl-warm", txt:"trop doux"};
+}
+function lvlTag(tw){ const l = level(tw); return tw == null ? "" : `<span class="lvl ${l.cls}">${l.txt}</span>`; }
+const BINS = [
+  {min:0.9, c:"var(--s5)", ink:"#0b1520", lab:"90 % et +"},
+  {min:0.7, c:"var(--s4)", ink:"#0b1520", lab:"70–90 %"},
+  {min:0.5, c:"var(--s3)", ink:"#ffffff", lab:"50–70 %"},
+  {min:0.3, c:"var(--s2)", ink:"#ffffff", lab:"30–50 %"},
+  {min:0.1, c:"var(--s1)", ink:"#ffffff", lab:"10–30 %"},
+  {min:-1,  c:"var(--s0)", ink:"#b3c1d0", lab:"moins de 10 %"}
+];
+function bin(p){ for(const b of BINS) if(p >= b.min) return b; return BINS[BINS.length-1]; }
+function hourRanges(hours){
+  if(!hours.length) return "";
+  const out = []; let a = hours[0], b = hours[0];
+  for(let i = 1; i <= hours.length; i++){
+    const h = hours[i];
+    if(h === b + 1){ b = h; continue; }
+    out.push(a === b ? a + " h" : a + "–" + b + " h");
+    a = b = h;
+  }
+  return out.join(", ");
+}
+
+/* ---------- Heure de Paris ---------- */
+function parisNowKey(){
+  const parts = new Intl.DateTimeFormat("en-GB", {timeZone:"Europe/Paris", year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", hourCycle:"h23"}).formatToParts(new Date());
+  const g = t => parts.find(p => p.type === t).value;
+  return `${g("year")}-${g("month")}-${g("day")}T${g("hour")}:00`;
+}
+function parisClock(){
+  return new Intl.DateTimeFormat("fr-FR", {timeZone:"Europe/Paris", hour:"2-digit", minute:"2-digit"}).format(new Date()).replace(":", " h ");
+}
+
+/* ---------- Récupération des données ---------- */
+function buildURL(base, model){
+  const q = [
+    "latitude=" + ALTS.map(a => a.lat).join(","),
+    "longitude=" + ALTS.map(a => a.lon).join(","),
+    "elevation=" + ALTS.map(a => a.alt).join(","),
+    "hourly=" + VARS,
+    "models=" + model,
+    "timezone=Europe%2FParis",
+    "wind_speed_unit=kmh",
+    "forecast_days=7"
+  ];
+  return base + "?" + q.join("&");
+}
+async function fetchJSON(url, timeoutMs){
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), timeoutMs);
+  try{
+    const res = await fetch(url, {signal: ctl.signal});
+    let body = null;
+    try{ body = await res.json(); }catch(e){}
+    if(!res.ok || (body && body.error)){
+      const reason = body && body.reason ? body.reason : "erreur " + res.status;
+      throw new Error(res.status === 429 ? "trop de demandes aujourd'hui (quota Open-Meteo)" : reason);
+    }
+    if(!body) throw new Error("réponse illisible");
+    return body;
+  }catch(e){
+    if(e.name === "AbortError") throw new Error("pas de réponse (délai dépassé)");
+    if(e instanceof TypeError) throw new Error("pas de connexion");
+    throw e;
+  }finally{ clearTimeout(timer); }
+}
+function parseModel(json, meta, kind){
+  const arr = Array.isArray(json) ? json : [json];
+  if(arr.length !== ALTS.length) throw new Error("réponse incomplète");
+  const points = arr.map((p, ai) => {
+    const h = p.hourly;
+    if(!h || !Array.isArray(h.time)) throw new Error("pas de données horaires");
+    const P = pressureAt(ALTS[ai].alt);
+    const suffixes = Object.keys(h).filter(k => /^temperature_2m(_member\d+)?$/.test(k)).map(k => k.slice(14));
+    const members = suffixes.map(s => {
+      const t = h["temperature_2m" + s] || [], rh = h["relative_humidity_2m" + s] || [], w = h["wind_speed_10m" + s] || [];
+      const tw = t.map((v, i) => (v == null || rh[i] == null) ? null : wetBulb(v, rh[i], P));
+      return {t, w, tw};
+    });
+    return {time: h.time, members};
+  });
+  return Object.assign({}, meta, {kind, points});
+}
+
+/* ---------- État ---------- */
+let models = [];      // modèles disponibles
+let missing = [];     // [{label, kind, reason}]
+let axis = [];        // heures ("YYYY-MM-DDTHH:00") à partir de maintenant
+let axisIdx = new Map();
+let days = [];        // [{key, idx:[...]}]
+let results = null;   // résultats par altitude
+let fetchedAt = "";
+
+async function calculate(){
+  const btn = document.getElementById("btnCalc");
+  btn.disabled = true; btn.textContent = "Chargement…";
+  setStatus("Demande des prévisions…");
+  const jobs = [
+    ...ENS_MODELS.map(m => ({meta:m, kind:"ens", url:buildURL(ENS_API, m.id)})),
+    ...DET_MODELS.map(m => ({meta:m, kind:"det", url:buildURL(DET_API, m.id)}))
+  ];
+  let done = 0;
+  const settled = await Promise.allSettled(jobs.map(j =>
+    fetchJSON(j.url, 30000).then(json => parseModel(json, j.meta, j.kind)).finally(() => {
+      done++; setStatus(`Prévisions reçues : ${done} / ${jobs.length}…`);
+    })
+  ));
+  const nowKey = parisNowKey();
+  const ok = [], miss = [];
+  settled.forEach((r, i) => {
+    const j = jobs[i];
+    if(r.status === "rejected"){ miss.push({label:j.meta.label, kind:j.kind, id:j.meta.id, reason:r.reason && r.reason.message || "erreur"}); return; }
+    const m = r.value;
+    // Garde le modèle seulement s'il renvoie des données au point 1800 m
+    const p0 = m.points[0];
+    let n = 0, last = null;
+    p0.time.forEach((t, k) => {
+      if(t < nowKey) return;
+      if(p0.members.some(mb => mb.tw[k] != null && mb.w[k] != null)){ n++; last = t; }
+    });
+    if(!n){ miss.push({label:m.label, kind:j.kind, id:m.id, reason:"pas de données pour Superbagnères"}); return; }
+    m.validHours = n; m.lastTime = last;
+    ok.push(m);
+  });
+  models = ok; missing = miss;
+  // axe horaire : union des heures, à partir de l'heure en cours
+  const set = new Set();
+  models.forEach(m => m.points[0].time.forEach(t => { if(t >= nowKey) set.add(t); }));
+  axis = [...set].sort();
+  // limite à 7 jours
+  const maxH = 7 * 24;
+  if(axis.length > maxH) axis = axis.slice(0, maxH);
+  axisIdx = new Map(axis.map((t, i) => [t, i]));
+  days = [];
+  axis.forEach((t, i) => { const k = dayKey(t); let d = days[days.length-1]; if(!d || d.key !== k){ d = {key:k, idx:[]}; days.push(d); } d.idx.push(i); });
+  todayKey = nowKey.slice(0,10);
+  const tm = new Date(Date.UTC(+todayKey.slice(0,4), +todayKey.slice(5,7)-1, +todayKey.slice(8,10) + 1));
+  tomorrowKey = tm.toISOString().slice(0,10);
+  fetchedAt = parisClock();
+  // journal de contrôle (portée de chaque modèle)
+  console.info("Modèles retenus :", models.map(m => `${m.kind} ${m.id} : ${m.validHours} h (jusqu'à ${m.lastTime})`));
+  if(miss.length) console.info("Modèles indisponibles :", miss.map(m => `${m.kind} ${m.id} : ${m.reason}`));
+  btn.disabled = false; btn.textContent = "Calculer";
+  if(!models.length){ setStatus("Aucune prévision reçue. Vérifiez la connexion et réessayez.", true); return; }
+  const nEns = models.filter(m => m.kind === "ens").length, nDet = models.length - nEns;
+  setStatus(`Prévisions du ${dayLabel(todayKey, true)} à ${fetchedAt} · ${nEns} modèles d'ensemble, ${nDet} modèles fins.`);
+  analyse(); render();
+}
+function setStatus(txt, err){ const s = document.getElementById("status"); s.textContent = txt; s.classList.toggle("err", !!err); }
+
+/* ---------- Analyse ---------- */
+function median(a){ if(!a.length) return null; const s = a.slice().sort((x,y) => x-y); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m-1] + s[m]) / 2; }
+function mean(a){ const v = a.filter(x => x != null); return v.length ? v.reduce((s,x) => s+x, 0) / v.length : null; }
+
+function analyseModelAlt(m, ai){
+  const H = axis.length, p = m.points[ai];
+  const frac = new Array(H).fill(null), T = new Array(H).fill(null), Tw = new Array(H).fill(null), W = new Array(H).fill(null);
+  const okM = p.members.map(() => new Int8Array(H).fill(-1));
+  let lastIdx = -1;
+  p.time.forEach((t, j) => {
+    const h = axisIdx.get(t); if(h === undefined) return;
+    let n = 0, k = 0; const ts = [], tws = [], ws = [];
+    p.members.forEach((mb, mi) => {
+      const tw = mb.tw[j], w = mb.w[j];
+      if(tw == null || w == null) return;
+      n++; const ok = tw <= settings.tw && w <= settings.wind;
+      okM[mi][h] = ok ? 1 : 0; if(ok) k++;
+      ts.push(mb.t[j]); tws.push(tw); ws.push(w);
+    });
+    if(n){ frac[h] = k / n; T[h] = median(ts); Tw[h] = median(tws); W[h] = median(ws); if(h > lastIdx) lastIdx = h; }
+  });
+  // par jour
+  const day = days.map(d => {
+    let valid = 0, yes = 0;
+    okM.forEach(arr => {
+      let any = false, c = 0;
+      d.idx.forEach(i => { if(arr[i] >= 0) any = true; if(arr[i] === 1) c++; });
+      if(any){ valid++; if(c >= DAY_MIN_H) yes++; }
+    });
+    const typical = d.idx.filter(i => frac[i] != null && frac[i] >= 0.5).map(i => hourOf(axis[i]));
+    const hoursOk = m.kind === "det" ? d.idx.filter(i => okM[0][i] === 1).length : null;
+    return {p: valid ? yes / valid : null, typical, hoursOk};
+  });
+  return {frac, T, Tw, W, lastIdx, day, ok: okM[0]};
+}
+
+function analyse(){
+  const H = axis.length;
+  models.forEach(m => { m.res = ALTS.map((a, ai) => analyseModelAlt(m, ai)); });
+  const ens = models.filter(m => m.kind === "ens");
+  results = ALTS.map((a, ai) => {
+    const pct = new Array(H).fill(null), T = new Array(H).fill(null), Tw = new Array(H).fill(null), W = new Array(H).fill(null);
+    for(let h = 0; h < H; h++){
+      const r = ens.map(m => m.res[ai]).filter(r => r.frac[h] != null);
+      if(!r.length) continue;
+      pct[h] = mean(r.map(x => x.frac[h])); T[h] = mean(r.map(x => x.T[h])); Tw[h] = mean(r.map(x => x.Tw[h])); W[h] = mean(r.map(x => x.W[h]));
+    }
+    const dayPct = days.map((d, di) => mean(ens.map(m => m.res[ai].day[di].p)));
+    // fenêtres
+    const windows = [];
+    let s = -1;
+    for(let h = 0; h <= H; h++){
+      const on = h < H && pct[h] != null && pct[h] >= 0.5;
+      if(on && s < 0) s = h;
+      if(!on && s >= 0){
+        const e = h - 1;
+        if(e - s + 1 >= MIN_WINDOW_H){
+          const rng = []; for(let i = s; i <= e; i++) rng.push(i);
+          const minBy = arr => rng.reduce((b, i) => (arr[i] != null && (b == null || arr[i] < b)) ? arr[i] : b, null);
+          windows.push({s, e, len: e - s + 1,
+            peak: Math.max(...rng.map(i => pct[i])),
+            T0: T[s], Tw0: Tw[s], Tmin: minBy(T), Twmin: minBy(Tw),
+            Wmax: rng.reduce((b, i) => W[i] != null && W[i] > b ? W[i] : b, 0)});
+        }
+        s = -1;
+      }
+    }
+    return {pct, T, Tw, W, dayPct, windows};
+  });
+}
+
+/* Démarrage selon un modèle fin, autour d'une fenêtre d'ensemble */
+function fineStart(r, w){
+  const H = axis.length;
+  if(r.lastIdx < w.s) return {cls:"na", txt:"hors portée"};
+  const from = Math.max(0, w.s - 6), to = Math.min(w.e, r.lastIdx);
+  for(let i = from; i <= to; i++){
+    if(r.ok[i] !== 1) continue;
+    let j = i; while(j + 1 < H && r.ok[j+1] === 1) j++;
+    if(j - i + 1 >= MIN_WINDOW_H || j === r.lastIdx){
+      const d = i - w.s;
+      const rel = d === 0 ? "même heure" : (d < 0 ? (-d) + " h plus tôt" : d + " h plus tard");
+      const endTxt = j === r.lastIdx ? " (ses prévisions s'arrêtent à " + hourOf(axis[j]) + "\u00a0h)" : " à " + (dayKey(axis[j]) !== dayKey(axis[i]) ? dayLabel(dayKey(axis[j])) + " " : "") + hourOf(axis[j]) + "\u00a0h";
+      return {cls:"yes", txt: `${dayLabel(dayKey(axis[i]))} de ${hourOf(axis[i])}\u00a0h${endTxt}`, rel};
+    }
+    i = j;
+  }
+  let cold = false, coldCalm = false;
+  for(let i = from; i <= to; i++){
+    if(r.Tw[i] != null && r.Tw[i] <= settings.tw){ cold = true; if(r.W[i] <= settings.wind) coldCalm = true; }
+  }
+  return {cls:"no", txt: !cold ? "non : trop doux" : (!coldCalm ? "non : trop de vent" : "non : trop court")};
+}
+
+/* ---------- Affichage ---------- */
+function renderAlts(){
+  const box = document.getElementById("alts");
+  box.innerHTML = ALTS.map((a, i) => `<button type="button" data-alt="${i}" aria-pressed="${i === selAlt}"><b>${a.alt}</b><small>${a.name || "m"}</small></button>`).join("");
+}
+function render(){
+  renderAlts();
+  document.querySelectorAll(".altName").forEach(el => el.textContent = ALTS[selAlt].alt + " m");
+  document.querySelectorAll(".thrTw").forEach(el => el.textContent = temp(settings.tw).replace("+",""));
+  document.querySelectorAll(".thrWind").forEach(el => el.textContent = num(settings.wind, 0) + " km/h");
+  if(!results) return;
+  document.getElementById("results").classList.remove("hidden");
+  renderStarts(); renderChart(); renderAltTable(); renderModelTable(); renderMissing();
+}
+
+function renderStarts(){
+  const R = results[selAlt];
+  const hl = document.getElementById("headline"), box = document.getElementById("windows");
+  const nEns = models.filter(m => m.kind === "ens").length;
+  if(!nEns){ hl.innerHTML = "Aucun modèle d'ensemble n'a répondu : impossible de calculer les chances. Réessayez plus tard."; box.innerHTML = ""; return; }
+  const nowTxt = R.pct[0] != null ? `<div class="small ink2" style="margin-top:6px">En ce moment : ${pctTxt(R.pct[0])} de chances · air ${temp(R.T[0])} · humide ${temp(R.Tw[0])} ${lvlTag(R.Tw[0])} · vent ${num(R.W[0],0)}&nbsp;km/h</div>` : "";
+  if(!R.windows.length){
+    hl.innerHTML = `Pas de démarrage possible dans les ${days.length} prochains jours.<span class="small muted" style="display:block;font-weight:400">Aucune période d'au moins ${MIN_WINDOW_H} h où la majorité des scénarios dit oui.</span>${nowTxt}`;
+    box.innerHTML = ""; return;
+  }
+  const w0 = R.windows[0];
+  hl.innerHTML = `Prochain démarrage possible :<span class="big">${cap(whenTxt(axis[w0.s]))}</span>${nowTxt}`;
+  const fineModels = models.filter(m => m.kind === "det" && m.fine);
+  box.innerHTML = R.windows.map(w => {
+    const b = bin(w.peak);
+    let fine = "";
+    if(w.s < FINE_HORIZON_H){
+      const items = DET_MODELS.filter(d => d.fine).map(d => {
+        const m = fineModels.find(x => x.id === d.id);
+        if(!m) return "";
+        const f = fineStart(m.res[selAlt], w);
+        return `<li class="${d.prio ? "prio" : ""}"><span class="n">${esc(d.label)}</span><span class="${f.cls}">${esc(f.txt)}${f.rel ? ` <span class="muted small">(${f.rel})</span>` : ""}</span></li>`;
+      }).join("");
+      fine = `<div class="fine"><div class="fine-t">Selon les modèles fins (démarrage) :</div>${items ? `<ul>${items}</ul>` : `<div class="small muted">Aucun modèle fin disponible.</div>`}</div>`;
+    }
+    return `<div class="win">
+      <div class="win-top">
+        <div><div class="win-when">${cap(whenTxt(axis[w.s]))}</div>
+          <div class="ink2">dernière heure : ${whenTxt(axis[w.e])}</div><div class="small muted">soit ${w.len} h de production</div></div>
+        <div class="win-pct"><span style="color:${b.c === "var(--s0)" ? "var(--ink2)" : b.c}">${pctTxt(w.peak)}</span><small>chances au plus haut</small></div>
+      </div>
+      <dl class="kv">
+        <dt>Au démarrage</dt><dd>air ${temp(w.T0)} · humide ${temp(w.Tw0)} ${lvlTag(w.Tw0)}</dd>
+        <dt>Au plus froid</dt><dd>air ${temp(w.Tmin)} · humide ${temp(w.Twmin)} ${lvlTag(w.Twmin)}</dd>
+        <dt>Vent max</dt><dd>${num(w.Wmax,0)}&nbsp;km/h</dd>
+      </dl>${fine}
+    </div>`;
+  }).join("");
+}
+
+/* Graphique heure par heure */
+const CH = {step:7, bar:5, top:24, plot:110};
+function renderChart(){
+  const R = results[selAlt], H = axis.length;
+  const arome = models.find(m => m.id === "meteofrance_arome_france_hd" && m.kind === "det");
+  const ar = arome ? arome.res[selAlt] : null;
+  const W = H * CH.step + 4, y0 = CH.top + CH.plot, stripY = y0 + 8, hTxtY = stripY + 22, Ht = hTxtY + 6;
+  const y = p => y0 - p * CH.plot;
+  let s = "";
+  // grille
+  s += `<line x1="0" x2="${W}" y1="${y(1)}" y2="${y(1)}" stroke="#2a3846"/>`;
+  s += `<line x1="0" x2="${W}" y1="${y(0.5)}" y2="${y(0.5)}" stroke="#8597ab" stroke-dasharray="3 3"/>`;
+  s += `<line x1="0" x2="${W}" y1="${y0}" y2="${y0}" stroke="#2a3846"/>`;
+  // jours
+  days.forEach(d => {
+    const x = d.idx[0] * CH.step;
+    s += `<line x1="${x+0.5}" x2="${x+0.5}" y1="4" y2="${Ht}" stroke="#2a3846"/>`;
+    if(d.idx.length >= 4) s += `<text x="${x+4}" y="15" fill="#b3c1d0" font-size="12" font-weight="600">${dayLabel(d.key, true)}</text>`;
+  });
+  // barres
+  for(let i = 0; i < H; i++){
+    const p = R.pct[i]; const x = i * CH.step + 1;
+    const hr = hourOf(axis[i]);
+    if(hr % 6 === 0 && hr !== 0) s += `<text x="${x + CH.bar/2}" y="${hTxtY}" fill="#8597ab" font-size="10" text-anchor="middle">${hr}h</text>`;
+    if(p != null && p > 0){
+      const hgt = Math.max(2, p * CH.plot), r = Math.min(2, hgt/2);
+      s += `<path d="M${x},${y0} v${-(hgt - r)} q0,${-r} ${r},${-r} h${CH.bar - 2*r} q${r},0 ${r},${r} v${hgt - r} z" fill="${bin(p).c}"/>`;
+    }
+    if(ar && ar.ok[i] >= 0){
+      s += ar.ok[i] === 1 ? `<rect x="${x}" y="${stripY}" width="${CH.bar}" height="6" rx="1.5" fill="#3fc43f"/>`
+                          : `<rect x="${x+1.5}" y="${stripY+2}" width="2" height="2" fill="#4a5a6b"/>`;
+    }
+  }
+  s += `<rect id="chSel" x="-20" y="${CH.top - 2}" width="${CH.step}" height="${CH.plot + 4}" fill="none" stroke="#e8eef5" stroke-width="1.5" rx="2"/>`;
+  // zones tactiles
+  for(let i = 0; i < H; i++) s += `<rect data-i="${i}" x="${i*CH.step}" y="0" width="${CH.step}" height="${Ht}" fill="transparent"/>`;
+  document.getElementById("chartScroll").innerHTML = `<svg id="chartSvg" width="${W}" height="${Ht}" role="img" aria-label="Chances de production heure par heure">${s}</svg>`;
+  document.getElementById("chartAxis").setAttribute("height", Ht);
+  document.getElementById("chartAxis").innerHTML =
+    `<text x="30" y="${y(1)+4}" fill="#8597ab" font-size="10" text-anchor="end">100%</text>` +
+    `<text x="30" y="${y(0.5)+4}" fill="#b3c1d0" font-size="10" text-anchor="end">50%</text>` +
+    `<text x="30" y="${y0+4}" fill="#8597ab" font-size="10" text-anchor="end">0</text>` +
+    (ar ? `<text x="30" y="${stripY+6}" fill="#8597ab" font-size="8" text-anchor="end">AROME</text>` : "");
+  document.getElementById("chartLegend").innerHTML = BINS.slice().reverse().map(b => `<span><i style="background:${b.c}"></i>${b.lab}</span>`).join("") +
+    (ar ? `<span><i style="background:#3fc43f;height:6px;vertical-align:1px"></i>AROME HD dit oui</span>` : "");
+  document.getElementById("chartSvg").addEventListener("click", ev => { const i = ev.target.getAttribute("data-i"); if(i != null) showHour(+i); });
+  document.getElementById("chartSvg").addEventListener("pointermove", ev => { if(ev.pointerType === "mouse"){ const i = ev.target.getAttribute("data-i"); if(i != null) showHour(+i); } });
+  const first = R.windows.length ? R.windows[0].s : 0;
+  showHour(first);
+}
+function showHour(i){
+  const R = results[selAlt];
+  const sel = document.getElementById("chSel"); if(sel) sel.setAttribute("x", i * CH.step);
+  const arome = models.find(m => m.id === "meteofrance_arome_france_hd" && m.kind === "det");
+  const a = arome ? arome.res[selAlt].ok[i] : -1;
+  const aTxt = a === 1 ? ` · AROME HD : <span class="yes">oui</span>` : a === 0 ? ` · AROME HD : <span class="no">non</span>` : "";
+  document.getElementById("chartInfo").innerHTML = `<b>${cap(whenTxt(axis[i]))}</b> — ${pctTxt(R.pct[i])} de chances<br>air ${temp(R.T[i])} · humide ${temp(R.Tw[i])} ${lvlTag(R.Tw[i])} · vent ${num(R.W[i],0)}&nbsp;km/h${aTxt}`;
+}
+
+function cellPct(p, extra, cls){
+  if(p == null) return `<td class="${cls||"c"}" style="color:var(--muted)">—</td>`;
+  const b = bin(p);
+  return `<td class="${cls||"c"}" style="background:${b.c};color:${b.ink}">${pctTxt(p)}${extra||""}</td>`;
+}
+function dayHead(){ return days.map(d => `<th>${dayLabel(d.key, true)}${d.key === todayKey ? "<br><small>(reste)</small>" : ""}</th>`).join(""); }
+function renderAltTable(){
+  const rows = ALTS.map((a, ai) => ({a, ai})).reverse().map(({a, ai}) =>
+    `<tr><th>${a.alt} m</th>${results[ai].dayPct.map(p => cellPct(p, "", "c" + (ai === selAlt ? " sel-alt" : ""))).join("")}</tr>`).join("");
+  document.getElementById("tblAlts").innerHTML = `<table><thead><tr><th></th>${dayHead()}</tr></thead><tbody>${rows}</tbody></table>`;
+}
+function renderModelTable(){
+  const ens = models.filter(m => m.kind === "ens"), det = models.filter(m => m.kind === "det");
+  const order = id => DET_MODELS.findIndex(d => d.id === id);
+  det.sort((a, b) => order(a.id) - order(b.id));
+  const detCell = (m, di) => {
+    const r = m.res[selAlt], d = r.day[di], idx = days[di].idx;
+    if(!idx.some(i => r.ok[i] >= 0)) return `<td class="mod" style="color:var(--muted)">—</td>`;
+    const n = d.hoursOk;
+    if(!n) return `<td class="mod" style="background:var(--s0);color:var(--ink2)">0 h</td>`;
+    const hrs = idx.filter(i => r.ok[i] === 1).map(i => hourOf(axis[i]));
+    const b = bin(n >= DAY_MIN_H ? 0.6 : 0.2);
+    return `<td class="mod" style="background:${b.c};color:${b.ink}">${n}\u00a0h<small>${hourRanges(hrs)}</small></td>`;
+  };
+  const ensRows = ens.map(m => `<tr><th>${esc(m.label)}<br><small class="muted">${m.points[selAlt].members.length} scénarios</small></th>${
+    m.res[selAlt].day.map(d => d.p == null ? `<td class="mod" style="color:var(--muted)">—</td>` : cellPct(d.p, `<small>${d.typical.length ? hourRanges(d.typical) : "&nbsp;"}</small>`, "mod")).join("")}</tr>`).join("");
+  const detRows = det.map(m => {
+    const meta = DET_MODELS.find(d => d.id === m.id);
+    return `<tr><th>${esc(m.label)}<br><small class="muted">${meta.res} · ${m.validHours} h</small></th>${days.map((d, di) => detCell(m, di)).join("")}</tr>`;
+  }).join("");
+  const sep = t => `<tr><th colspan="${days.length + 1}" style="position:static;background:none;color:var(--muted);font-size:.78rem;padding-top:10px">${t}</th></tr>`;
+  document.getElementById("tblModels").innerHTML = `<table><thead><tr><th></th>${dayHead()}</tr></thead><tbody>${
+    ens.length ? sep("Modèles d'ensemble (chances d'au moins 4 h)") + ensRows : ""}${
+    det.length ? sep("Modèles fins (heures de production prévues)") + detRows : ""}</tbody></table>`;
+}
+function renderMissing(){
+  const sec = document.getElementById("secMissing");
+  sec.classList.toggle("hidden", !missing.length);
+  document.getElementById("missing").innerHTML = missing.map(m =>
+    `<li><b>${esc(m.label)}</b> <span class="muted">(${m.kind === "ens" ? "ensemble" : "modèle fin"})</span> : ${esc(m.reason)}</li>`).join("");
+}
+
+/* ---------- Réglages ---------- */
+function syncInputs(){ document.getElementById("inTw").value = settings.tw; document.getElementById("inWind").value = settings.wind; }
+function applySettings(){
+  saveJSON(STORE_KEY, settings);
+  if(results){ analyse(); }
+  render();
+}
+function setSetting(key, v){
+  if(!isFinite(v)) return;
+  v = key === "tw" ? Math.round(Math.min(2, Math.max(-10, v)) * 10) / 10 : Math.round(Math.min(80, Math.max(0, v)));
+  settings[key] = v; syncInputs(); applySettings();
+}
+
+/* ---------- Icône écran d'accueil ---------- */
+function setupHomeIcon(){
+  try{
+    const c = document.createElement("canvas"); c.width = c.height = 192;
+    const x = c.getContext("2d");
+    x.fillStyle = "#0f2236"; x.fillRect(0, 0, 192, 192);
+    x.font = '128px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+    x.textAlign = "center"; x.textBaseline = "middle"; x.fillStyle = "#ffffff";
+    x.fillText("❄️", 96, 104);
+    const png = c.toDataURL("image/png");
+    document.getElementById("touchIcon").href = png;
+    const start = location.href.split("#")[0].split("?")[0];
+    const man = {name:"Neige SB – Superbagnères", short_name:"Neige SB", start_url:start, scope:start.replace(/[^/]*$/, ""),
+      display:"standalone", background_color:"#0b121a", theme_color:"#0b121a",
+      icons:[{src:png, sizes:"192x192", type:"image/png", purpose:"any"}]};
+    document.getElementById("manifestLink").href = "data:application/manifest+json," + encodeURIComponent(JSON.stringify(man));
+  }catch(e){ /* sans canvas : l'icône par défaut du téléphone sera utilisée */ }
+}
+
+/* ---------- Démarrage ---------- */
+document.getElementById("btnCalc").addEventListener("click", calculate);
+document.getElementById("alts").addEventListener("click", ev => {
+  const b = ev.target.closest("button[data-alt]"); if(!b) return;
+  selAlt = +b.dataset.alt; saveJSON(STORE_ALT, selAlt); render();
+});
+document.querySelectorAll("[data-step]").forEach(b => b.addEventListener("click", () => {
+  const k = b.dataset.step; setSetting(k, settings[k] + parseFloat(b.dataset.d));
+}));
+document.getElementById("inTw").addEventListener("change", e => setSetting("tw", parseFloat(String(e.target.value).replace(",", "."))));
+document.getElementById("inWind").addEventListener("change", e => setSetting("wind", parseFloat(String(e.target.value).replace(",", "."))));
+document.getElementById("btnReset").addEventListener("click", () => { Object.assign(settings, DEFAULTS); syncInputs(); applySettings(); });
+
+// Contrôle de cohérence : 0 °C, 50 % à 1800 m ≈ −3,3 °C humide
+(function(){
+  const tw = wetBulb(0, 50, pressureAt(1800));
+  document.getElementById("checkTw").textContent = temp(tw);
+  if(Math.abs(tw - (-3.3)) > 0.15) console.error("Contrôle température humide anormal :", tw);
+})();
+setupHomeIcon();
+syncInputs();
+render();
+</script>
+</body>
+</html>

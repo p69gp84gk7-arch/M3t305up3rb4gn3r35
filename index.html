@@ -122,6 +122,11 @@ footer a{color:var(--ink2)}
 .chips button.off{opacity:.55}
 #basis{margin:0 2px 4px}
 .used{color:var(--good);font-weight:800}
+/* Diagramme des scénarios */
+.seg-ctl{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.seg-ctl button{min-height:40px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card2);font-size:.88rem}
+.seg-ctl button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+#spagInfo{margin-top:8px;font-size:.92rem;min-height:2.8em;color:var(--ink2)}
 .hidden{display:none!important}
 </style>
 </head>
@@ -198,6 +203,20 @@ footer a{color:var(--ink2)}
       </div>
       <div id="chartInfo"></div>
       <div class="legend" id="chartLegend"></div>
+    </section>
+
+    <section id="secSpag">
+      <h2>Diagramme des scénarios — <span class="altName"></span></h2>
+      <div class="small muted">Chaque ligne fine est un scénario du modèle choisi, comme sur les diagrammes d'ensemble de Meteociel
+        (GFS : 30 scénarios + 1 de contrôle). Plus les lignes sont serrées, plus la prévision est sûre.</div>
+      <div class="seg-ctl" id="spagModels" aria-label="Modèle du diagramme"></div>
+      <div class="seg-ctl" id="spagVars" aria-label="Donnée affichée"></div>
+      <div class="chart-wrap">
+        <svg class="chart-axis" id="spagAxis" width="34" height="230" aria-hidden="true"></svg>
+        <div class="chart-scroll" id="spagScroll"></div>
+      </div>
+      <div id="spagInfo"></div>
+      <div class="legend" id="spagLegend"></div>
     </section>
 
     <section>
@@ -630,7 +649,7 @@ function render(){
   document.querySelectorAll(".thrWind").forEach(el => el.textContent = num(settings.wind, 0) + " km/h");
   if(!results) return;
   document.getElementById("results").classList.remove("hidden");
-  renderBasis(); renderDays(); renderStarts(); renderChart(); renderAltTable(); renderModelTable(); renderMissing();
+  renderBasis(); renderDays(); renderStarts(); renderChart(); renderSpaghetti(); renderAltTable(); renderModelTable(); renderMissing();
 }
 
 /* Jour par jour : schéma de la pente avec 3 altitudes */
@@ -819,6 +838,121 @@ function renderMissing(){
     `<li><b>${esc(m.label)}</b> <span class="muted">(${m.kind === "ens" ? "ensemble" : "modèle fin"})</span> : ${esc(m.reason)}</li>`).join("");
 }
 
+/* ---------- Diagramme des scénarios (spaghetti) ---------- */
+const STORE_SPAG = "neigeSB.diagramme";
+const SPAG_VARS = [
+  {id:"tw", label:"Temp. humide", unit:"°C", step:2},
+  {id:"t",  label:"Temp. air",    unit:"°C", step:2},
+  {id:"w",  label:"Vent",         unit:"km/h", step:10}
+];
+// run principal (déterministe) de la même famille, tracé en plus quand il est disponible
+const SPAG_MAIN = {gfs025:"gfs_global", ecmwf_ifs025:"ecmwf_ifs025", ecmwf_aifs025:"ecmwf_aifs025_single",
+  icon_seamless_eps:"icon_global", gem_global:"gem_global", ukmo_global_ensemble_20km:"ukmo_global_deterministic_10km"};
+const spag = {model:"gfs025", v:"tw"};
+(function(){ const s = loadJSON(STORE_SPAG);
+  if(s && ENS_MODELS.some(m => m.id === s.model)) spag.model = s.model;
+  if(s && SPAG_VARS.some(v => v.id === s.v)) spag.v = s.v; })();
+const SP = {top:24, plot:150};
+let spagData = null;
+function seriesOf(m, ai, v){
+  // valeurs alignées sur l'axe horaire, une série par scénario
+  const p = m.points[ai], H = axis.length;
+  return p.members.map(mb => {
+    const out = new Array(H).fill(null), src = v === "tw" ? mb.tw : v === "t" ? mb.t : mb.w;
+    p.time.forEach((t, j) => { const h = axisIdx.get(t); if(h !== undefined && src[j] != null) out[h] = src[j]; });
+    return out;
+  });
+}
+function renderSpaghetti(){
+  const ens = models.filter(m => m.kind === "ens");
+  const sec = document.getElementById("secSpag");
+  sec.classList.toggle("hidden", !ens.length);
+  if(!ens.length) return;
+  if(!ens.some(m => m.id === spag.model)) spag.model = (ens.find(m => m.id === "gfs025") || ens[0]).id;
+  document.getElementById("spagModels").innerHTML = ens.map(m =>
+    `<button type="button" data-spag-model="${m.id}" aria-pressed="${m.id === spag.model}">${esc(m.label.replace(/ \(.*\)/, ""))} · ${m.points[REF_IDX].members.length}</button>`).join("");
+  document.getElementById("spagVars").innerHTML = SPAG_VARS.map(v =>
+    `<button type="button" data-spag-var="${v.id}" aria-pressed="${v.id === spag.v}">${v.label}</button>`).join("");
+  const V = SPAG_VARS.find(v => v.id === spag.v);
+  const m = ens.find(x => x.id === spag.model), H = axis.length;
+  const series = seriesOf(m, selAlt, spag.v);
+  const mainDet = models.find(x => x.kind === "det" && x.id === SPAG_MAIN[m.id]);
+  const main = mainDet ? seriesOf(mainDet, selAlt, spag.v)[0] : null;
+  const med = new Array(H).fill(null), lo = new Array(H).fill(null), hi = new Array(H).fill(null);
+  let vmin = Infinity, vmax = -Infinity;
+  for(let h = 0; h < H; h++){
+    const vals = series.map(s => s[h]).filter(x => x != null);
+    if(!vals.length) continue;
+    med[h] = median(vals); lo[h] = Math.min(...vals); hi[h] = Math.max(...vals);
+    vmin = Math.min(vmin, lo[h]); vmax = Math.max(vmax, hi[h]);
+  }
+  const thr = spag.v === "tw" ? settings.tw : spag.v === "w" ? settings.wind : 0;
+  if(!isFinite(vmin)){ vmin = thr - 5; vmax = thr + 5; }
+  vmin = Math.min(vmin, thr); vmax = Math.max(vmax, thr);
+  if(spag.v === "w") vmin = 0;
+  const st = V.step;
+  vmin = Math.floor(vmin / st) * st; vmax = Math.ceil(vmax / st) * st;
+  if(vmax - vmin < 2 * st) vmax = vmin + 2 * st;
+  const W = H * CH.step + 4, y0 = SP.top + SP.plot, stripY = y0 + 8, hTxtY = stripY + 22, Ht = hTxtY + 6;
+  const y = v => y0 - (v - vmin) / (vmax - vmin) * SP.plot;
+  const xc = i => i * CH.step + 1 + CH.bar / 2;
+  const path = arr => { let d = "", pen = false;
+    arr.forEach((v, i) => { if(v == null){ pen = false; return; } d += (pen ? "L" : "M") + xc(i).toFixed(1) + "," + y(v).toFixed(1); pen = true; });
+    return d; };
+  let s = "";
+  for(let v = vmin; v <= vmax + 1e-9; v += st)
+    s += `<line x1="0" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="#223040"/>`;
+  days.forEach(d => {
+    const x = d.idx[0] * CH.step;
+    s += `<line x1="${x+0.5}" x2="${x+0.5}" y1="4" y2="${Ht}" stroke="#2a3846"/>`;
+    if(d.idx.length >= 4) s += `<text x="${x+4}" y="15" fill="#b3c1d0" font-size="12" font-weight="600">${dayLabel(d.key, true)}</text>`;
+  });
+  for(let i = 0; i < H; i++){
+    const hr = hourOf(axis[i]);
+    if(hr % 6 === 0 && hr !== 0) s += `<text x="${xc(i)}" y="${hTxtY}" fill="#8597ab" font-size="10" text-anchor="middle">${hr}h</text>`;
+  }
+  // scénarios, puis seuil, run principal et médiane par-dessus
+  s += `<g fill="none" stroke="#6da7ec" stroke-opacity=".38" stroke-width="1">` + series.map(a => `<path d="${path(a)}"/>`).join("") + `</g>`;
+  s += `<line x1="0" x2="${W}" y1="${y(thr)}" y2="${y(thr)}" stroke="#fab219" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+  if(main) s += `<path d="${path(main)}" fill="none" stroke="#c9a7ff" stroke-width="2"/>`;
+  s += `<path d="${path(med)}" fill="none" stroke="#e8eef5" stroke-width="2.5"/>`;
+  // bande du bas : part des scénarios « production possible » à cette heure (mêmes couleurs que le graphique en barres)
+  const frac = m.res[selAlt].frac;
+  for(let i = 0; i < H; i++) if(frac[i] != null)
+    s += `<rect x="${i * CH.step + 1}" y="${stripY}" width="${CH.bar}" height="7" rx="1.5" fill="${bin(frac[i]).c}"/>`;
+  s += `<rect id="spSel" x="-20" y="${SP.top - 2}" width="${CH.step}" height="${SP.plot + 4}" fill="none" stroke="#e8eef5" stroke-width="1.5" rx="2"/>`;
+  for(let i = 0; i < H; i++) s += `<rect data-i="${i}" x="${i*CH.step}" y="0" width="${CH.step}" height="${Ht}" fill="transparent"/>`;
+  document.getElementById("spagScroll").innerHTML = `<svg id="spagSvg" width="${W}" height="${Ht}" role="img" aria-label="Scénarios ${esc(m.label)} heure par heure">${s}</svg>`;
+  let ax = "";
+  for(let v = vmin; v <= vmax + 1e-9; v += st)
+    ax += `<text x="30" y="${y(v)+4}" fill="#8597ab" font-size="10" text-anchor="end">${num(v, 0)}</text>`;
+  ax += `<text x="30" y="${SP.top - 10}" fill="#8597ab" font-size="9" text-anchor="end">${V.unit}</text>`;
+  ax += `<text x="30" y="${stripY + 7}" fill="#8597ab" font-size="8" text-anchor="end">% oui</text>`;
+  const axEl = document.getElementById("spagAxis"); axEl.setAttribute("height", Ht); axEl.innerHTML = ax;
+  const thrLab = spag.v === "tw" ? "seuil " + temp(settings.tw).replace("+", "") : spag.v === "w" ? "seuil " + num(settings.wind, 0) + "\u00a0km/h" : "0\u00a0°C";
+  document.getElementById("spagLegend").innerHTML =
+    `<span><i style="background:#6da7ec;opacity:.6;height:2px;vertical-align:4px"></i>${series.length} scénarios</span>` +
+    `<span><i style="background:#e8eef5;height:3px;vertical-align:4px"></i>médiane</span>` +
+    (main ? `<span><i style="background:#c9a7ff;height:3px;vertical-align:4px"></i>run principal (${esc(mainDet.label)})</span>` : "") +
+    `<span><i style="background:none;border-top:2px dashed #fab219;height:0;border-radius:0;vertical-align:3px"></i>${thrLab}</span>` +
+    `<span><i style="background:var(--s3);height:7px;vertical-align:1px"></i>bande du bas : part des scénarios qui disent oui</span>`;
+  spagData = {series, med, lo, hi, main, mainDet, frac, V};
+  document.getElementById("spagSvg").addEventListener("click", ev => { const i = ev.target.getAttribute("data-i"); if(i != null) showSpag(+i); });
+  document.getElementById("spagSvg").addEventListener("pointermove", ev => { if(ev.pointerType === "mouse"){ const i = ev.target.getAttribute("data-i"); if(i != null) showSpag(+i); } });
+  const R = results[selAlt], first = R && R.windows.length ? R.windows[0].s : 0;
+  showSpag(first);
+  document.getElementById("spagScroll").scrollLeft = Math.max(0, first * CH.step - 60);  // montre l'heure détaillée
+}
+function showSpag(i){
+  const d = spagData; if(!d) return;
+  const sel = document.getElementById("spSel"); if(sel) sel.setAttribute("x", i * CH.step);
+  const f = v => d.V.id === "w" ? num(v, 0) + "\u00a0km/h" : temp(v);
+  if(d.med[i] == null){ document.getElementById("spagInfo").innerHTML = `<b>${cap(whenTxt(axis[i]))}</b> — pas de donnée pour ce modèle`; return; }
+  document.getElementById("spagInfo").innerHTML = `<b>${cap(whenTxt(axis[i]))}</b> — médiane ${f(d.med[i])} (de ${f(d.lo[i])} à ${f(d.hi[i])})<br>` +
+    `${pctTxt(d.frac[i])} des scénarios disent « production possible »` +
+    (d.main && d.main[i] != null ? ` · run principal ${f(d.main[i])}` : "");
+}
+
 /* ---------- Choix des modèles ---------- */
 const NO_MODEL_TXT = "Aucun modèle choisi n'a de prévision. Ouvrez « Modèles utilisés » et cochez au moins un modèle disponible.";
 function usedModels(){ return models.filter(m => selModels.has(mkey(m.kind, m.id))); }
@@ -902,6 +1036,14 @@ document.getElementById("btnCalc").addEventListener("click", calculate);
 document.getElementById("alts").addEventListener("click", ev => {
   const b = ev.target.closest("button[data-alt]"); if(!b) return;
   selAlt = +b.dataset.alt; saveJSON(STORE_ALT, ALTS[selAlt].alt); render();
+});
+document.getElementById("secSpag").addEventListener("click", ev => {
+  const bm = ev.target.closest("button[data-spag-model]"), bv = ev.target.closest("button[data-spag-var]");
+  if(!bm && !bv) return;
+  if(bm) spag.model = bm.dataset.spagModel;
+  if(bv) spag.v = bv.dataset.spagVar;
+  saveJSON(STORE_SPAG, spag);
+  if(results) renderSpaghetti();
 });
 document.getElementById("modelsBox").addEventListener("click", ev => {
   const c = ev.target.closest("button[data-model]");

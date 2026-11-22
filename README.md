@@ -48,6 +48,11 @@ La page s'ouvre alors comme une application. Il faut une connexion internet pour
   démarrage selon AROME HD et les autres modèles fins.
 - **Heure par heure** : graphique en barres des chances (couleur selon le pourcentage),
   avec une ligne verte quand AROME HD dit oui. Toucher une barre affiche le détail.
+- **Diagramme des scénarios** : comme les diagrammes d'ensemble de Meteociel, une ligne fine par
+  scénario d'un modèle d'ensemble (GFS par défaut : 30 scénarios + 1 de contrôle, comme Meteociel ;
+  ou ECMWF 51, ICON 40, GEM 21, UKMO 18), avec la médiane, le run principal du même modèle quand
+  il est disponible, et le seuil. Au choix : température humide, température de l'air ou vent.
+  Une bande en bas donne la part des scénarios qui disent « production possible ».
 - **Toutes les altitudes** : chances d'avoir au moins 4 h de production dans la journée.
 - **Par modèle** : pour l'altitude choisie, le détail de chaque modèle jour par jour.
 - **Modèles indisponibles** : les modèles qui n'ont pas répondu, avec la raison.

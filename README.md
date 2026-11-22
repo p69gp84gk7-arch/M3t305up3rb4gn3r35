@@ -53,6 +53,14 @@ La page s'ouvre alors comme une application. Il faut une connexion internet pour
   ou ECMWF 51, ICON 40, GEM 21, UKMO 18), avec la médiane, le run principal du même modèle quand
   il est disponible, et le seuil. Au choix : température humide, température de l'air ou vent.
   Une bande en bas donne la part des scénarios qui disent « production possible ».
+- **Sûreté de la prévision** : chaque jour reçoit un indicateur ✔ sûre / ~ moyenne / ? incertaine,
+  dans les cartes « Jour par jour » (modèles choisis, 3 altitudes) et en haut du diagramme des scénarios
+  (modèle affiché). Le diagramme montre aussi la **zone de sûreté** : la bande où se trouvent 8 scénarios
+  sur 10. Règle :
+  - **sûre** : en moyenne sur la journée, au moins 9 scénarios sur 10 disent la même chose
+    (accord |2p − 1| ≥ 0,8) **et** 8 scénarios sur 10 tiennent dans 3 °C de température humide ;
+  - **incertaine** : accord < 0,5 (moins de 3 scénarios sur 4 d'accord) **ou** écart > 6 °C ;
+  - **moyenne** : entre les deux.
 - **Toutes les altitudes** : chances d'avoir au moins 4 h de production dans la journée.
 - **Par modèle** : pour l'altitude choisie, le détail de chaque modèle jour par jour.
 - **Modèles indisponibles** : les modèles qui n'ont pas répondu, avec la raison.

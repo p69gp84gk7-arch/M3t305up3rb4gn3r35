@@ -405,13 +405,13 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
 
 /* ---------- Configuration ---------- */
 const ALTS = [
-  // 1450 m : point provisoire (le plus proche du front de neige à ~1450 m sur le relief), à confirmer.
+  // 1450 m : point provisoire (le plus proche du plateau à ~1450 m sur le relief), à confirmer.
   {alt:1450, lat:42.7556, lon:0.5747, name:"bas de station"},
-  {alt:1800, lat:42.7576, lon:0.5747, name:"front de neige"},
-  {alt:1900, lat:42.7530, lon:0.5650, name:""},
+  {alt:1800, lat:42.7576, lon:0.5747, name:"plateau"},
+  {alt:1900, lat:42.7530, lon:0.5650, name:"booster"},
   {alt:2000, lat:42.7480, lon:0.5560, name:""},
-  {alt:2100, lat:42.7440, lon:0.5480, name:""},
-  {alt:2200, lat:42.7395, lon:0.5410, name:"haut"}
+  {alt:2100, lat:42.7440, lon:0.5480, name:"haut de station"},
+  {alt:2200, lat:42.7395, lon:0.5410, name:""}
 ];
 const ENS_API = "https://ensemble-api.open-meteo.com/v1/ensemble";
 const DET_API = "https://api.open-meteo.com/v1/forecast";
@@ -462,7 +462,7 @@ const PRESETS = [
   {label:"Aucun", keys: []}
 ];
 const STORE_ALT = "neigeSB.alt";   // altitude choisie, en mètres
-const REF_ALT = 1800;               // point de contrôle des modèles (front de neige)
+const REF_ALT = 1800;               // point de contrôle des modèles (plateau)
 
 /* ---------- Stockage local (réglages) ---------- */
 function loadJSON(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
@@ -1320,7 +1320,7 @@ const MODEL_INFO = {
   "det:jma_gsm": "Service météo japonais. Maille large (55 km) : le relief est très lissé, peu adapté à la montagne."
 };
 const INFO = {
-  alt: ["Altitude", `<p>Les 6 points du domaine, du bas de station (1450 m) au haut (2200 m). Pour chaque point, les prévisions sont
+  alt: ["Altitude", `<p>Les 6 points du domaine : 1450 m bas de station, 1800 m plateau, 1900 m booster, 2000 m, 2100 m haut de station et 2200 m. Pour chaque point, les prévisions sont
     corrigées à l'altitude exacte : en général, plus on monte, plus il fait froid.</p><p>Le bouton choisi commande les blocs marqués
     « — 1800 m » (par exemple). Il est gardé dans le téléphone.</p>`],
   seuils: ["Réglages des seuils", `<p>La production est jugée possible quand, à la même heure :</p><ul><li>la température humide est

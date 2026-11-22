@@ -38,7 +38,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 #btnCalc:active{transform:scale(.99)}
 #status{color:var(--ink2);font-size:.92rem;margin:8px 2px 0;min-height:1.3em}
 #status.err{color:var(--bad)}
-.alts{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.alts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .alts button{min-height:60px;border-radius:12px;border:1px solid var(--line);background:var(--card2);padding:6px 2px;line-height:1.15}
 .alts button b{display:block;font-size:1.1rem}
 .alts button small{display:block;color:var(--muted);font-size:.7rem;margin-top:2px}
@@ -94,6 +94,21 @@ td.sel-alt{outline:2px solid var(--ink);outline-offset:-2px}
 .how ul{padding-left:20px}
 footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:20px}
 footer a{color:var(--ink2)}
+/* Jour par jour : petit schéma 3 altitudes */
+.days{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px}
+.day{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px 10px 8px}
+.day-h{font-weight:700;margin-bottom:4px}
+.day-h small{font-weight:400;color:var(--muted)}
+.day-b{display:flex;gap:8px;align-items:center}
+.day-b svg{flex:0 0 66px}
+.day-l{list-style:none;margin:0;padding:0;flex:1;min-width:0}
+.day-l li{display:grid;grid-template-columns:56px 48px 1fr;align-items:center;gap:6px;padding:3px 0;font-size:.9rem}
+.day-l .a{color:var(--ink2);font-weight:600}
+.day-l .p{font-weight:700;text-align:center;border-radius:6px;padding:2px 0}
+.day-l .t{line-height:1.2}
+.day-l .t small{color:var(--muted)}
+.day-l .seg{display:block}
+.day-l .nw{white-space:nowrap}
 .hidden{display:none!important}
 </style>
 </head>
@@ -134,6 +149,13 @@ footer a{color:var(--ink2)}
   </section>
 
   <div id="results" class="hidden">
+    <section id="secDays">
+      <h2>Jour par jour — 1450, 1800 et 2000 m</h2>
+      <div class="small muted" style="margin-bottom:8px">Chances d'avoir au moins 4 h de production dans la journée, et heures
+        théoriques de démarrage → arrêt (dernière heure où la majorité des scénarios dit oui).</div>
+      <div class="days" id="days"></div>
+    </section>
+
     <section id="secStarts">
       <h2>Démarrages possibles — <span class="altName"></span></h2>
       <div id="headline" class="headline"></div>
@@ -174,7 +196,7 @@ footer a{color:var(--ink2)}
     <details>
       <summary>Comment c'est calculé</summary>
       <p><b>1. Les prévisions.</b> Au moment où vous appuyez sur « Calculer », la page demande les prévisions heure par heure à Open-Meteo
-        (service gratuit) pour les 5 altitudes de la station : température de l'air, humidité et vent à 10 m. Les prévisions sont
+        (service gratuit) pour les 6 altitudes de la station : température de l'air, humidité et vent à 10 m. Les prévisions sont
         corrigées pour l'altitude exacte de chaque point. Rien n'est enregistré sur un serveur.</p>
       <p><b>2. La température humide.</b> C'est la température qui compte pour faire de la neige : plus l'air est sec, plus elle est
         basse que la température de l'air. Elle est calculée à partir de la température, de l'humidité et de la pression de l'air à
@@ -210,6 +232,8 @@ footer a{color:var(--ink2)}
 
 /* ---------- Configuration ---------- */
 const ALTS = [
+  // 1450 m : point provisoire (le plus proche du front de neige à ~1450 m sur le relief), à confirmer.
+  {alt:1450, lat:42.7556, lon:0.5747, name:"bas de station"},
   {alt:1800, lat:42.7576, lon:0.5747, name:"front de neige"},
   {alt:1900, lat:42.7530, lon:0.5650, name:""},
   {alt:2000, lat:42.7480, lon:0.5560, name:""},
@@ -251,7 +275,8 @@ const DET_MODELS = [
 const DEFAULTS = {tw:-2.5, wind:15};
 const MIN_WINDOW_H = 3, DAY_MIN_H = 4, FINE_HORIZON_H = 48;
 const STORE_KEY = "neigeSB.reglages";
-const STORE_ALT = "neigeSB.altitude";
+const STORE_ALT = "neigeSB.alt";   // altitude choisie, en mètres
+const REF_ALT = 1800;               // point de contrôle des modèles (front de neige)
 
 /* ---------- Stockage local (réglages) ---------- */
 function loadJSON(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
@@ -260,8 +285,10 @@ const settings = Object.assign({}, DEFAULTS);
 (function(){ const s = loadJSON(STORE_KEY);
   if(s && isFinite(s.tw)) settings.tw = +s.tw;
   if(s && isFinite(s.wind)) settings.wind = +s.wind; })();
-let selAlt = 0;
-(function(){ const a = loadJSON(STORE_ALT); if(Number.isInteger(a) && a>=0 && a<ALTS.length) selAlt = a; })();
+const REF_IDX = ALTS.findIndex(a => a.alt === REF_ALT);
+let selAlt = REF_IDX;
+(function(){ const i = ALTS.findIndex(a => a.alt === loadJSON(STORE_ALT)); if(i >= 0) selAlt = i;
+  try{ localStorage.removeItem("neigeSB.altitude"); }catch(e){} })(); // ancienne clé (numéro de bouton)
 
 /* ---------- Physique ---------- */
 function pressureAt(alt){ return 1013.25 * Math.pow(1 - 2.25577e-5 * alt, 5.25588); }
@@ -415,7 +442,7 @@ async function calculate(){
     if(r.status === "rejected"){ miss.push({label:j.meta.label, kind:j.kind, id:j.meta.id, reason:r.reason && r.reason.message || "erreur"}); return; }
     const m = r.value;
     // Garde le modèle seulement s'il renvoie des données au point 1800 m
-    const p0 = m.points[0];
+    const p0 = m.points[REF_IDX];
     let n = 0, last = null;
     p0.time.forEach((t, k) => {
       if(t < nowKey) return;
@@ -428,7 +455,7 @@ async function calculate(){
   models = ok; missing = miss;
   // axe horaire : union des heures, à partir de l'heure en cours
   const set = new Set();
-  models.forEach(m => m.points[0].time.forEach(t => { if(t >= nowKey) set.add(t); }));
+  models.forEach(m => m.points[REF_IDX].time.forEach(t => { if(t >= nowKey) set.add(t); }));
   axis = [...set].sort();
   // limite à 7 jours
   const maxH = 7 * 24;
@@ -557,7 +584,50 @@ function render(){
   document.querySelectorAll(".thrWind").forEach(el => el.textContent = num(settings.wind, 0) + " km/h");
   if(!results) return;
   document.getElementById("results").classList.remove("hidden");
-  renderStarts(); renderChart(); renderAltTable(); renderModelTable(); renderMissing();
+  renderDays(); renderStarts(); renderChart(); renderAltTable(); renderModelTable(); renderMissing();
+}
+
+/* Jour par jour : schéma de la pente avec 3 altitudes */
+const DIAG_ALTS = [2000, 1800, 1450];   // du haut vers le bas
+function daySegments(R, d){
+  const a = d.idx[0], b = d.idx[d.idx.length - 1];
+  return R.windows.filter(w => w.e >= a && w.s <= b).map(w => {
+    const start = w.s >= a ? `${hourOf(axis[w.s])}\u00a0h` : `<small>veille</small>`;
+    const endDay = dayKey(axis[w.e]);
+    const note = endDay === d.key ? "" : (endDay === dayKey(axis[Math.min(b + 1, axis.length - 1)]) ? "lendemain" : dayLabel(endDay, true));
+    return `<span class="seg"><span class="nw">${start} → ${hourOf(axis[w.e])}\u00a0h</span>${note ? ` <small>${note}</small>` : ""}</span>`;
+  });
+}
+function slopeSVG(cols){
+  // pente stylisée : bas à gauche, sommet à droite ; points placés selon l'altitude
+  const y = alt => 78 - (alt - 1350) / (2150 - 1350) * 68;
+  const x = yy => 6 + (80 - yy) / 72 * 64;
+  let s = `<polygon points="0,84 0,80 14,72 24,66 34,52 44,44 54,28 62,22 70,8 76,12 76,84" fill="#1f2d3b" stroke="#3a4b5d"/>`;
+  DIAG_ALTS.forEach((alt, k) => {
+    const yy = y(alt), xx = x(yy);
+    s += `<circle cx="${xx.toFixed(1)}" cy="${yy.toFixed(1)}" r="6.5" fill="${cols[k]}" stroke="#8597ab" stroke-width="1.5"/>`;
+  });
+  return `<svg width="66" height="80" viewBox="0 0 76 84" aria-hidden="true">${s}</svg>`;
+}
+function renderDays(){
+  const box = document.getElementById("days");
+  if(!models.some(m => m.kind === "ens")){ box.innerHTML = `<div class="small muted">Pas de modèle d'ensemble disponible.</div>`; return; }
+  const idxs = DIAG_ALTS.map(alt => ALTS.findIndex(a => a.alt === alt));
+  box.innerHTML = days.map((d, di) => {
+    const cols = [], rows = [];
+    idxs.forEach((ai, k) => {
+      const R = results[ai], p = R.dayPct[di];
+      const b = p == null ? null : bin(p);
+      cols.push(b ? b.c : "#26313d");
+      const segs = daySegments(R, d);
+      const t = segs.length ? segs.slice(0, 2).join("") + (segs.length > 2 ? ` <small>+${segs.length - 2}</small>` : "")
+                            : `<small>pas de démarrage</small>`;
+      rows.push(`<li><span class="a">${DIAG_ALTS[k]}\u00a0m</span><span class="p" style="background:${b ? b.c : "transparent"};color:${b ? b.ink : "var(--muted)"}">${pctTxt(p)}</span><span class="t">${t}</span></li>`);
+    });
+    const label = cap(dayLabel(d.key)) + (d.key === todayKey || d.key === tomorrowKey ? ` <small>${dayLabel(d.key, true)}</small>` : "");
+    return `<div class="day"><div class="day-h">${label}${d.key === todayKey ? ` <small>(heures restantes)</small>` : ""}</div>
+      <div class="day-b">${slopeSVG(cols)}<ul class="day-l">${rows.join("")}</ul></div></div>`;
+  }).join("");
 }
 
 function renderStarts(){
@@ -737,7 +807,7 @@ function setupHomeIcon(){
 document.getElementById("btnCalc").addEventListener("click", calculate);
 document.getElementById("alts").addEventListener("click", ev => {
   const b = ev.target.closest("button[data-alt]"); if(!b) return;
-  selAlt = +b.dataset.alt; saveJSON(STORE_ALT, selAlt); render();
+  selAlt = +b.dataset.alt; saveJSON(STORE_ALT, ALTS[selAlt].alt); render();
 });
 document.querySelectorAll("[data-step]").forEach(b => b.addEventListener("click", () => {
   const k = b.dataset.step; setSetting(k, settings[k] + parseFloat(b.dataset.d));

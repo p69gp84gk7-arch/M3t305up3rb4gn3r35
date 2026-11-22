@@ -1,7 +1,7 @@
 # ❄️ Neige SB — quand démarrer la production de neige à Superbagnères
 
 Page web à utiliser surtout sur téléphone. Elle indique, pour chaque altitude du domaine
-(1800 m front de neige, 1900, 2000, 2100 et 2200 m), quand la production de neige
+(1450 m bas de station, 1800 m front de neige, 1900, 2000, 2100 et 2200 m), quand la production de neige
 sera possible dans les 7 prochains jours.
 
 - Un seul fichier `index.html` (HTML + CSS + JavaScript), sans compilation.
@@ -32,7 +32,11 @@ La page s'ouvre alors comme une application. Il faut une connexion internet pour
 
 ## Ce que montre la page
 
-- **Altitude** : gros boutons pour choisir 1800, 1900, 2000, 2100 ou 2200 m.
+- **Altitude** : gros boutons pour choisir 1450, 1800, 1900, 2000, 2100 ou 2200 m.
+- **Jour par jour** : pour chaque jour, un petit schéma de la pente avec 1450, 1800 et 2000 m
+  coloré selon les chances d'avoir au moins 4 h de production, et les heures théoriques de
+  démarrage → arrêt à chaque altitude (« veille » quand la production a commencé la veille,
+  « lendemain » quand elle s'arrête le lendemain).
 - **Démarrages possibles** : les périodes d'au moins 3 h où la majorité des scénarios météo
   disent « production possible », avec l'heure de démarrage et la dernière heure favorable,
   les chances au plus haut, la température de l'air et la température humide au démarrage et
@@ -64,8 +68,27 @@ La page s'ouvre alors comme une application. Il faut une connexion internet pour
    (pour aujourd'hui, seulement sur les heures restantes).
 
 Les coordonnées de chaque point sont envoyées avec le paramètre `elevation`, qui corrige
-la prévision pour l'altitude exacte. Les 5 points partent dans le même appel.
+la prévision pour l'altitude exacte. Les 6 points partent dans le même appel.
 Fuseau horaire Europe/Paris, vent en km/h, 7 jours de prévision.
+
+## Points utilisés
+
+| Altitude | Rôle | Latitude | Longitude | Altitude du terrain à ces coordonnées* |
+|---|---|---|---|---|
+| 1450 m | bas de station | 42.7556 | 0.5747 | 1456 m |
+| 1800 m | front de neige | 42.7576 | 0.5747 | 1567 m |
+| 1900 m | | 42.7530 | 0.5650 | 1468 m |
+| 2000 m | | 42.7480 | 0.5560 | 1499 m |
+| 2100 m | | 42.7440 | 0.5480 | 1596 m |
+| 2200 m | haut | 42.7395 | 0.5410 | 1820 m |
+
+\* Relief Copernicus 90 m, lu via l'API `elevation` d'Open-Meteo le 22/11/2026.
+Les coordonnées sont approximatives : c'est le paramètre `elevation` qui impose l'altitude
+utilisée pour corriger les prévisions, donc le calcul se fait bien à 1450, 1800… 2200 m.
+Les coordonnées servent seulement à choisir la maille du modèle. Le point à 1450 m est provisoire
+(point le plus proche du front de neige à environ 1450 m sur le relief) : à remplacer par les
+coordonnées réelles du bas de station.
+Le contrôle « le modèle renvoie-t-il des données ? » se fait sur le point 1800 m.
 
 ## Modèles météo
 
@@ -74,7 +97,7 @@ La page garde seulement ceux qui renvoient des données au point 1800 m et affic
 
 ### Modèles d'ensemble (pourcentages de chances)
 
-API `https://ensemble-api.open-meteo.com/v1/ensemble`. Tous testés le 22/11/2026 sur les 5 points.
+API `https://ensemble-api.open-meteo.com/v1/ensemble`. Tous testés le 22/11/2026 sur les points d'altitude.
 
 | Modèle | Code | Membres | Portée |
 |---|---|---|---|
@@ -120,7 +143,7 @@ Cas particuliers constatés le 22/11/2026 :
 ## Limites à connaître
 
 - Open-Meteo gratuit autorise 10 000 appels par jour et par adresse internet. Chaque appui sur
-  **Calculer** fait 23 appels : pas de souci pour un usage normal depuis un téléphone.
+  **Calculer** fait 23 appels (les 6 altitudes partent ensemble dans chaque appel) : pas de souci pour un usage normal depuis un téléphone.
   Si le quota est dépassé, les modèles concernés apparaissent dans « Modèles indisponibles ».
 - C'est une aide à la décision : les mesures sur place (sonde, hygromètre, anémomètre) restent la référence.
 

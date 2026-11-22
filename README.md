@@ -1,7 +1,7 @@
 # ❄️ Neige SB — quand démarrer la production de neige à Superbagnères
 
 Page web à utiliser surtout sur téléphone. Elle indique, pour chaque altitude du domaine
-(1450 m bas de station, 1800 m front de neige, 1900, 2000, 2100 et 2200 m), quand la production de neige
+(1450 m bas de station, 1800 m plateau, 1900 m booster, 2000 m, 2100 m haut de station et 2200 m), quand la production de neige
 sera possible dans les 16 prochains jours (comme les diagrammes d'ensemble de Meteociel).
 
 - Un seul fichier `index.html` (HTML + CSS + JavaScript), sans compilation.
@@ -144,17 +144,17 @@ s'ouvrent avec un bouton « Voir les jours 8 à 16 ».
 | Altitude | Rôle | Latitude | Longitude | Altitude du terrain à ces coordonnées* |
 |---|---|---|---|---|
 | 1450 m | bas de station | 42.7556 | 0.5747 | 1456 m |
-| 1800 m | front de neige | 42.7576 | 0.5747 | 1567 m |
-| 1900 m | | 42.7530 | 0.5650 | 1468 m |
+| 1800 m | plateau | 42.7576 | 0.5747 | 1567 m |
+| 1900 m | booster | 42.7530 | 0.5650 | 1468 m |
 | 2000 m | | 42.7480 | 0.5560 | 1499 m |
-| 2100 m | | 42.7440 | 0.5480 | 1596 m |
-| 2200 m | haut | 42.7395 | 0.5410 | 1820 m |
+| 2100 m | haut de station | 42.7440 | 0.5480 | 1596 m |
+| 2200 m | | 42.7395 | 0.5410 | 1820 m |
 
 \* Relief Copernicus 90 m, lu via l'API `elevation` d'Open-Meteo le 22/11/2026.
 Les coordonnées sont approximatives : c'est le paramètre `elevation` qui impose l'altitude
 utilisée pour corriger les prévisions, donc le calcul se fait bien à 1450, 1800… 2200 m.
 Les coordonnées servent seulement à choisir la maille du modèle. Le point à 1450 m est provisoire
-(point le plus proche du front de neige à environ 1450 m sur le relief) : à remplacer par les
+(point le plus proche du plateau à environ 1450 m sur le relief) : à remplacer par les
 coordonnées réelles du bas de station.
 Le contrôle « le modèle renvoie-t-il des données ? » se fait sur le point 1800 m.
 

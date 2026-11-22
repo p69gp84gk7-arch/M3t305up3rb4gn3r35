@@ -32,6 +32,17 @@ La page s'ouvre alors comme une application. Il faut une connexion internet pour
 
 ## Ce que montre la page
 
+La page est rangée en **4 onglets**, avec une barre en bas de l'écran. Le bouton **Calculer** et le choix de
+l'altitude restent en haut. L'onglet ouvert est gardé dans le téléphone.
+
+| Onglet | Contenu |
+|---|---|
+| **Résumé** | Jour par jour, Démarrages possibles |
+| **Graphiques** | Heure par heure, Diagramme des scénarios |
+| **Tableaux** | Toutes les altitudes, Par modèle, Modèles indisponibles |
+| **Réglages** | Réglages des seuils, Modèles utilisés, Comment c'est calculé |
+
+
 - **Altitude** : gros boutons pour choisir 1450, 1800, 1900, 2000, 2100 ou 2200 m.
 - **Jour par jour** : pour chaque jour, un petit schéma de la pente avec 1450, 1800 et 2000 m
   coloré selon les chances d'avoir au moins 4 h de production, et les heures théoriques de

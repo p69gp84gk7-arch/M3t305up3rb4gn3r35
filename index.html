@@ -149,6 +149,18 @@ footer a{color:var(--ink2)}
 .chip-w{position:relative}
 .chip-w > button[data-model]{width:100%;padding-right:38px}
 .chip-w > .info{position:absolute;right:8px;top:50%;margin:-12px 0 0}
+/* Onglets */
+body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:60;display:grid;grid-template-columns:repeat(4,1fr);
+  background:rgba(11,18,26,.96);border-top:1px solid var(--line);padding:4px 4px calc(4px + env(safe-area-inset-bottom));
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.tabbar button{min-height:58px;border:0;background:none;color:var(--muted);font-size:.78rem;font-weight:600;border-radius:12px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+
+.tabbar button[aria-selected="true"]{color:var(--accent);background:#14273b}
+
+.empty{text-align:center;padding:28px 10px;margin:14px 0;border:1px dashed var(--line);border-radius:var(--r)}
+@media (min-width:760px){.tabbar{left:50%;right:auto;width:560px;transform:translateX(-50%);border:1px solid var(--line);border-bottom:0;border-radius:16px 16px 0 0}}
 .hidden{display:none!important}
 </style>
 </head>
@@ -160,156 +172,180 @@ footer a{color:var(--ink2)}
   <button id="btnCalc" type="button">Calculer</button>
   <div id="status" role="status" aria-live="polite">Appuyez sur « Calculer » pour charger les prévisions.</div>
 
-  <section aria-label="Choix de l'altitude">
-    <h2>Altitude <button type="button" class="info" data-info="alt" aria-label="Explication" aria-expanded="false">i</button></h2>
-    <div class="alts" id="alts"></div>
-  </section>
-
-  <section>
-    <details id="settingsBox">
-      <summary>Réglages des seuils <button type="button" class="info" data-info="seuils" aria-label="Explication" aria-expanded="false">i</button></summary>
-      <div class="set-row">
-        <label for="inTw">Température humide maximale (°C)</label>
-        <div class="stepper">
-          <button type="button" data-step="tw" data-d="-0.5" aria-label="Baisser">−</button>
-          <input id="inTw" type="number" inputmode="decimal" step="0.5" min="-10" max="2">
-          <button type="button" data-step="tw" data-d="0.5" aria-label="Monter">+</button>
-        </div>
-      </div>
-      <div class="set-row">
-        <label for="inWind">Vent maximum à 10 m (km/h)</label>
-        <div class="stepper">
-          <button type="button" data-step="wind" data-d="-1" aria-label="Baisser">−</button>
-          <input id="inWind" type="number" inputmode="numeric" step="1" min="0" max="80">
-          <button type="button" data-step="wind" data-d="1" aria-label="Monter">+</button>
-        </div>
-      </div>
-      <button type="button" class="link" id="btnReset">Revenir aux valeurs par défaut (−2,5 °C et 15 km/h)</button>
-    </details>
-  </section>
-
-  <section>
-    <details id="modelsBox">
-      <summary>Modèles utilisés <button type="button" class="info" data-info="modeles" aria-label="Explication" aria-expanded="false">i</button> <span id="modelsSum" class="small muted" style="font-weight:400"></span></summary>
-      <p class="small muted" style="margin:8px 0 0">Touchez un modèle pour l'ajouter ou l'enlever. Avec plusieurs modèles, la page fait
-        la moyenne : chaque modèle compte autant. Tous les résultats ci-dessous suivent ce choix.</p>
-      <div class="presets" id="presets"></div>
-      <div class="mgroup-t">Ensembles : plusieurs scénarios chacun, donnent de vrais pourcentages</div>
-      <div class="chips" id="chipsEns"></div>
-      <div class="mgroup-t">Modèles déterministes : un seul scénario chacun (oui ou non)</div>
-      <div class="chips" id="chipsDet"></div>
-    </details>
-  </section>
-
-  <div id="results" class="hidden">
-    <div id="basis" class="small ink2"></div>
-    <section id="secDays">
-      <h2>Jour par jour — 1450, 1800 et 2000 m <button type="button" class="info" data-info="jours" aria-label="Explication" aria-expanded="false">i</button></h2>
-      <div class="small muted" style="margin-bottom:8px">Chances d'avoir au moins 4 h de production dans la journée, et heures
-        théoriques de démarrage → arrêt (dernière heure où la majorité des scénarios dit oui).</div>
-      <div class="days" id="days"></div>
-      <button type="button" class="more" id="moreDays"></button>
-    </section>
-
-    <section id="secStarts">
-      <h2>Démarrages possibles — <span class="altName"></span> <button type="button" class="info" data-info="demarrages" aria-label="Explication" aria-expanded="false">i</button></h2>
-      <div id="headline" class="headline"></div>
-      <div id="windows"></div>
-      <button type="button" class="more" id="moreWins"></button>
-    </section>
-
-    <section>
-      <h2>Heure par heure — <span class="altName"></span> <button type="button" class="info" data-info="heure" aria-label="Explication" aria-expanded="false">i</button></h2>
-      <div class="small muted">Hauteur des barres = chances de pouvoir produire. Touchez une barre pour le détail.</div>
-      <div class="chart-wrap">
-        <svg class="chart-axis" id="chartAxis" width="34" height="180" aria-hidden="true"></svg>
-        <div class="chart-scroll" id="chartScroll"></div>
-      </div>
-      <div id="chartInfo"></div>
-      <div class="legend" id="chartLegend"></div>
-    </section>
-
-    <section id="secSpag">
-      <h2>Diagramme des scénarios — <span class="altName"></span> <button type="button" class="info" data-info="spag" aria-label="Explication" aria-expanded="false">i</button></h2>
-      <div class="small muted">Chaque ligne fine est un scénario du modèle choisi, comme sur les diagrammes d'ensemble de Meteociel
-        (GFS : 30 scénarios + 1 de contrôle, sur 16 jours). Plus les lignes sont serrées, plus la prévision est sûre.</div>
-      <div class="seg-ctl" id="spagModels" aria-label="Modèle du diagramme"></div>
-      <div class="seg-ctl" id="spagVars" aria-label="Donnée affichée"></div>
-      <div class="chart-wrap">
-        <svg class="chart-axis" id="spagAxis" width="34" height="230" aria-hidden="true"></svg>
-        <div class="chart-scroll" id="spagScroll"></div>
-      </div>
-      <div id="spagInfo"></div>
-      <div class="legend" id="spagLegend"></div>
-    </section>
-
-    <section>
-      <h2>Toutes les altitudes <button type="button" class="info" data-info="tblAlts" aria-label="Explication" aria-expanded="false">i</button></h2>
-      <div class="small muted" style="margin-bottom:8px">Chances d'avoir au moins 4 h de production dans la journée.</div>
-      <div class="tbl-wrap" id="tblAlts"></div>
-    </section>
-
-    <section>
-      <h2>Par modèle — <span class="altName"></span> <button type="button" class="info" data-info="tblModels" aria-label="Explication" aria-expanded="false">i</button></h2>
-      <div class="small muted" style="margin-bottom:8px">Modèles d'ensemble : chances d'avoir au moins 4 h dans la journée, et heures où la majorité des scénarios dit oui.
-        Modèles fins : nombre d'heures de production prévues, et lesquelles.</div>
-      <div class="tbl-wrap" id="tblModels"></div>
-    </section>
-
-    <section id="secMissing" class="hidden">
-      <h2>Modèles indisponibles <button type="button" class="info" data-info="missing" aria-label="Explication" aria-expanded="false">i</button></h2>
-      <ul id="missing" class="small ink2" style="margin:0;padding-left:18px"></ul>
+  <div id="altBox">
+    <section aria-label="Choix de l'altitude">
+      <h2>Altitude <button type="button" class="info" data-info="alt" aria-label="Explication" aria-expanded="false">i</button></h2>
+      <div class="alts" id="alts"></div>
     </section>
   </div>
 
-  <section class="how">
-    <details>
-      <summary>Comment c'est calculé</summary>
-      <p><b>1. Les prévisions.</b> Au moment où vous appuyez sur « Calculer », la page demande les prévisions heure par heure à Open-Meteo
-        (service gratuit) pour les 6 altitudes de la station : température de l'air, humidité et vent à 10 m. Les prévisions sont
-        corrigées pour l'altitude exacte de chaque point. Rien n'est enregistré sur un serveur.</p>
-      <p><b>2. La température humide.</b> C'est la température qui compte pour faire de la neige : plus l'air est sec, plus elle est
-        basse que la température de l'air. Elle est calculée à partir de la température, de l'humidité et de la pression de l'air à
-        l'altitude (plus faible en haut).
-        Exemple : 0 °C et 50 % d'humidité à 1800 m donnent <b id="checkTw">…</b> de température humide.</p>
-      <p><b>3. Production possible</b> si, en même temps :</p>
-      <ul>
-        <li>la température humide est inférieure ou égale à <b class="thrTw">−2,5 °C</b> ;</li>
-        <li>le vent à 10 m est inférieur ou égal à <b class="thrWind">15 km/h</b>.</li>
-      </ul>
-      <p>Ces deux seuils se changent dans « Réglages des seuils ». Niveaux affichés :
-        <span class="lvl lvl-limit">limite</span> de −2,5 à −3 °C,
-        <span class="lvl lvl-prod">production</span> à −3 °C ou moins,
-        <span class="lvl lvl-exc">excellent</span> à −6 °C ou moins.</p>
-      <p><b>4. Les chances en %.</b> Plusieurs centres météo (européen, américain, allemand, canadien, britannique…) font
-        chacun des dizaines de prévisions légèrement différentes, appelées « scénarios ». Pour chaque heure, on regarde la part
-        des scénarios qui disent « production possible ». Chaque centre compte autant, quel que soit son nombre de scénarios.</p>
-      <p><b>Choix des modèles.</b> Par défaut, la page fait la moyenne des modèles d'ensemble. Dans « Modèles utilisés », vous
-        pouvez choisir un seul modèle ou en mélanger plusieurs : la page fait alors la moyenne des modèles cochés, chacun comptant
-        autant. Un modèle déterministe (comme AROME HD) ne donne qu'un scénario : seul, il donne 0 % ou 100 %. Dans une moyenne,
-        il compte comme un modèle d'ensemble. Au-delà de la portée d'un modèle (48 h pour AROME HD), la moyenne continue avec
-        ceux qui restent.</p>
-      <p><b>Températures affichées.</b> Ce sont des valeurs typiques : la valeur du milieu de tous les scénarios. Au démarrage d'une
-        fenêtre, elle peut donc être un peu au-dessus du seuil alors que la moitié des scénarios est déjà assez froide.</p>
-      <p><b>Sûreté de la prévision.</b> Une prévision est <span class="conf conf-ok">✔ sûre</span> quand les scénarios sont
-        d'accord entre eux : au moins 9 sur 10 disent la même chose (oui ou non) et 8 scénarios sur 10 sont dans un écart de
-        température humide de 3 °C au plus. Elle est <span class="conf conf-bad">? incertaine</span> si les scénarios se partagent
-        presque moitié-moitié (moins de 3 sur 4 d'accord) ou si l'écart dépasse 6 °C. Entre les deux, elle est
-        <span class="conf conf-mid">~ moyenne</span>. Dans le diagramme des scénarios, la zone de sûreté (bande claire) contient
-        8 scénarios sur 10 : plus elle est étroite, plus le modèle est sûr. Avec un seul scénario (modèle déterministe seul),
-        la sûreté ne peut pas être calculée.</p>
-      <p><b>5. Les démarrages.</b> Une fenêtre commence à la première heure où au moins la moitié des scénarios disent oui, et
-        s'arrête à la dernière heure où c'est encore le cas. On ne garde que les fenêtres d'au moins 3 heures.</p>
-      <p><b>6. Les modèles fins.</b> Pour les 48 prochaines heures, on ajoute l'avis des modèles à maille fine, plus précis en
-        montagne à court terme, en particulier AROME HD de Météo-France (1,5 km). Ils ne donnent qu'un seul scénario : oui ou non.</p>
-      <p class="small muted">C'est une aide à la décision : l'observation sur place (sonde, hygromètre, anémomètre) reste la référence.</p>
-    </details>
-  </section>
+  <div class="tab" id="tab-resume" role="tabpanel" aria-labelledby="tb-resume">
+      <p class="empty muted">Appuyez sur « Calculer » en haut pour charger les prévisions.</p>
+    <div class="res hidden">
+      <div id="basis" class="small ink2"></div>
+      <section id="secDays">
+        <h2>Jour par jour — 1450, 1800 et 2000 m <button type="button" class="info" data-info="jours" aria-label="Explication" aria-expanded="false">i</button></h2>
+        <div class="small muted" style="margin-bottom:8px">Chances d'avoir au moins 4 h de production dans la journée, et heures
+          théoriques de démarrage → arrêt (dernière heure où la majorité des scénarios dit oui).</div>
+        <div class="days" id="days"></div>
+        <button type="button" class="more" id="moreDays"></button>
+      </section>
+
+      <section id="secStarts">
+        <h2>Démarrages possibles — <span class="altName"></span> <button type="button" class="info" data-info="demarrages" aria-label="Explication" aria-expanded="false">i</button></h2>
+        <div id="headline" class="headline"></div>
+        <div id="windows"></div>
+        <button type="button" class="more" id="moreWins"></button>
+      </section>
+    </div>
+  </div>
+
+  <div class="tab hidden" id="tab-graphs" role="tabpanel" aria-labelledby="tb-graphs">
+      <p class="empty muted">Appuyez sur « Calculer » en haut pour charger les prévisions.</p>
+    <div class="res hidden">
+      <section>
+        <h2>Heure par heure — <span class="altName"></span> <button type="button" class="info" data-info="heure" aria-label="Explication" aria-expanded="false">i</button></h2>
+        <div class="small muted">Hauteur des barres = chances de pouvoir produire. Touchez une barre pour le détail.</div>
+        <div class="chart-wrap">
+          <svg class="chart-axis" id="chartAxis" width="34" height="180" aria-hidden="true"></svg>
+          <div class="chart-scroll" id="chartScroll"></div>
+        </div>
+        <div id="chartInfo"></div>
+        <div class="legend" id="chartLegend"></div>
+      </section>
+
+      <section id="secSpag">
+        <h2>Diagramme des scénarios — <span class="altName"></span> <button type="button" class="info" data-info="spag" aria-label="Explication" aria-expanded="false">i</button></h2>
+        <div class="small muted">Chaque ligne fine est un scénario du modèle choisi, comme sur les diagrammes d'ensemble de Meteociel
+          (GFS : 30 scénarios + 1 de contrôle, sur 16 jours). Plus les lignes sont serrées, plus la prévision est sûre.</div>
+        <div class="seg-ctl" id="spagModels" aria-label="Modèle du diagramme"></div>
+        <div class="seg-ctl" id="spagVars" aria-label="Donnée affichée"></div>
+        <div class="chart-wrap">
+          <svg class="chart-axis" id="spagAxis" width="34" height="230" aria-hidden="true"></svg>
+          <div class="chart-scroll" id="spagScroll"></div>
+        </div>
+        <div id="spagInfo"></div>
+        <div class="legend" id="spagLegend"></div>
+      </section>
+    </div>
+  </div>
+
+  <div class="tab hidden" id="tab-tables" role="tabpanel" aria-labelledby="tb-tables">
+      <p class="empty muted">Appuyez sur « Calculer » en haut pour charger les prévisions.</p>
+    <div class="res hidden">
+      <section>
+        <h2>Toutes les altitudes <button type="button" class="info" data-info="tblAlts" aria-label="Explication" aria-expanded="false">i</button></h2>
+        <div class="small muted" style="margin-bottom:8px">Chances d'avoir au moins 4 h de production dans la journée.</div>
+        <div class="tbl-wrap" id="tblAlts"></div>
+      </section>
+
+      <section>
+        <h2>Par modèle — <span class="altName"></span> <button type="button" class="info" data-info="tblModels" aria-label="Explication" aria-expanded="false">i</button></h2>
+        <div class="small muted" style="margin-bottom:8px">Modèles d'ensemble : chances d'avoir au moins 4 h dans la journée, et heures où la majorité des scénarios dit oui.
+          Modèles fins : nombre d'heures de production prévues, et lesquelles.</div>
+        <div class="tbl-wrap" id="tblModels"></div>
+      </section>
+
+      <section id="secMissing" class="hidden">
+        <h2>Modèles indisponibles <button type="button" class="info" data-info="missing" aria-label="Explication" aria-expanded="false">i</button></h2>
+        <ul id="missing" class="small ink2" style="margin:0;padding-left:18px"></ul>
+      </section>
+    </div>
+  </div>
+
+  <div class="tab hidden" id="tab-reglages" role="tabpanel" aria-labelledby="tb-reglages">
+    <section>
+      <details id="settingsBox" open>
+        <summary>Réglages des seuils <button type="button" class="info" data-info="seuils" aria-label="Explication" aria-expanded="false">i</button></summary>
+        <div class="set-row">
+          <label for="inTw">Température humide maximale (°C)</label>
+          <div class="stepper">
+            <button type="button" data-step="tw" data-d="-0.5" aria-label="Baisser">−</button>
+            <input id="inTw" type="number" inputmode="decimal" step="0.5" min="-10" max="2">
+            <button type="button" data-step="tw" data-d="0.5" aria-label="Monter">+</button>
+          </div>
+        </div>
+        <div class="set-row">
+          <label for="inWind">Vent maximum à 10 m (km/h)</label>
+          <div class="stepper">
+            <button type="button" data-step="wind" data-d="-1" aria-label="Baisser">−</button>
+            <input id="inWind" type="number" inputmode="numeric" step="1" min="0" max="80">
+            <button type="button" data-step="wind" data-d="1" aria-label="Monter">+</button>
+          </div>
+        </div>
+        <button type="button" class="link" id="btnReset">Revenir aux valeurs par défaut (−2,5 °C et 15 km/h)</button>
+      </details>
+    </section>
+
+    <section>
+      <details id="modelsBox" open>
+        <summary>Modèles utilisés <button type="button" class="info" data-info="modeles" aria-label="Explication" aria-expanded="false">i</button> <span id="modelsSum" class="small muted" style="font-weight:400"></span></summary>
+        <p class="small muted" style="margin:8px 0 0">Touchez un modèle pour l'ajouter ou l'enlever. Avec plusieurs modèles, la page fait
+          la moyenne : chaque modèle compte autant. Tous les résultats (Résumé, Graphiques, Tableaux) suivent ce choix.</p>
+        <div class="presets" id="presets"></div>
+        <div class="mgroup-t">Ensembles : plusieurs scénarios chacun, donnent de vrais pourcentages</div>
+        <div class="chips" id="chipsEns"></div>
+        <div class="mgroup-t">Modèles déterministes : un seul scénario chacun (oui ou non)</div>
+        <div class="chips" id="chipsDet"></div>
+      </details>
+    </section>
+
+    <section class="how">
+      <details>
+        <summary>Comment c'est calculé</summary>
+        <p><b>1. Les prévisions.</b> Au moment où vous appuyez sur « Calculer », la page demande les prévisions heure par heure à Open-Meteo
+          (service gratuit) pour les 6 altitudes de la station : température de l'air, humidité et vent à 10 m. Les prévisions sont
+          corrigées pour l'altitude exacte de chaque point. Rien n'est enregistré sur un serveur.</p>
+        <p><b>2. La température humide.</b> C'est la température qui compte pour faire de la neige : plus l'air est sec, plus elle est
+          basse que la température de l'air. Elle est calculée à partir de la température, de l'humidité et de la pression de l'air à
+          l'altitude (plus faible en haut).
+          Exemple : 0 °C et 50 % d'humidité à 1800 m donnent <b id="checkTw">…</b> de température humide.</p>
+        <p><b>3. Production possible</b> si, en même temps :</p>
+        <ul>
+          <li>la température humide est inférieure ou égale à <b class="thrTw">−2,5 °C</b> ;</li>
+          <li>le vent à 10 m est inférieur ou égal à <b class="thrWind">15 km/h</b>.</li>
+        </ul>
+        <p>Ces deux seuils se changent juste au-dessus, dans « Réglages des seuils ». Niveaux affichés :
+          <span class="lvl lvl-limit">limite</span> de −2,5 à −3 °C,
+          <span class="lvl lvl-prod">production</span> à −3 °C ou moins,
+          <span class="lvl lvl-exc">excellent</span> à −6 °C ou moins.</p>
+        <p><b>4. Les chances en %.</b> Plusieurs centres météo (européen, américain, allemand, canadien, britannique…) font
+          chacun des dizaines de prévisions légèrement différentes, appelées « scénarios ». Pour chaque heure, on regarde la part
+          des scénarios qui disent « production possible ». Chaque centre compte autant, quel que soit son nombre de scénarios.</p>
+        <p><b>Choix des modèles.</b> Par défaut, la page fait la moyenne des modèles d'ensemble. Dans « Modèles utilisés », vous
+          pouvez choisir un seul modèle ou en mélanger plusieurs : la page fait alors la moyenne des modèles cochés, chacun comptant
+          autant. Un modèle déterministe (comme AROME HD) ne donne qu'un scénario : seul, il donne 0 % ou 100 %. Dans une moyenne,
+          il compte comme un modèle d'ensemble. Au-delà de la portée d'un modèle (48 h pour AROME HD), la moyenne continue avec
+          ceux qui restent.</p>
+        <p><b>Températures affichées.</b> Ce sont des valeurs typiques : la valeur du milieu de tous les scénarios. Au démarrage d'une
+          fenêtre, elle peut donc être un peu au-dessus du seuil alors que la moitié des scénarios est déjà assez froide.</p>
+        <p><b>Sûreté de la prévision.</b> Une prévision est <span class="conf conf-ok">✔ sûre</span> quand les scénarios sont
+          d'accord entre eux : au moins 9 sur 10 disent la même chose (oui ou non) et 8 scénarios sur 10 sont dans un écart de
+          température humide de 3 °C au plus. Elle est <span class="conf conf-bad">? incertaine</span> si les scénarios se partagent
+          presque moitié-moitié (moins de 3 sur 4 d'accord) ou si l'écart dépasse 6 °C. Entre les deux, elle est
+          <span class="conf conf-mid">~ moyenne</span>. Dans le diagramme des scénarios, la zone de sûreté (bande claire) contient
+          8 scénarios sur 10 : plus elle est étroite, plus le modèle est sûr. Avec un seul scénario (modèle déterministe seul),
+          la sûreté ne peut pas être calculée.</p>
+        <p><b>5. Les démarrages.</b> Une fenêtre commence à la première heure où au moins la moitié des scénarios disent oui, et
+          s'arrête à la dernière heure où c'est encore le cas. On ne garde que les fenêtres d'au moins 3 heures.</p>
+        <p><b>6. Les modèles fins.</b> Pour les 48 prochaines heures, on ajoute l'avis des modèles à maille fine, plus précis en
+          montagne à court terme, en particulier AROME HD de Météo-France (1,5 km). Ils ne donnent qu'un seul scénario : oui ou non.</p>
+        <p class="small muted">C'est une aide à la décision : l'observation sur place (sonde, hygromètre, anémomètre) reste la référence.</p>
+      </details>
+    </section>
+  </div>
 
   <div id="bubble" class="hidden" role="dialog" aria-modal="false"></div>
 
   <footer>Données météo : <a href="https://open-meteo.com/" rel="noopener">Open-Meteo.com</a> (licence CC BY 4.0)</footer>
 </main>
+
+<nav class="tabbar" role="tablist" aria-label="Onglets">
+  <button type="button" role="tab" id="tb-resume" data-tab="resume" aria-controls="tab-resume"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20M5 5l14 14M19 5L5 19"/></svg>Résumé</button>
+  <button type="button" role="tab" id="tb-graphs" data-tab="graphs" aria-controls="tab-graphs"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>Graphiques</button>
+  <button type="button" role="tab" id="tb-tables" data-tab="tables" aria-controls="tab-tables"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16"/></svg>Tableaux</button>
+  <button type="button" role="tab" id="tb-reglages" data-tab="reglages" aria-controls="tab-reglages"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Réglages</button>
+</nav>
 
 <script>
 "use strict";
@@ -724,7 +760,8 @@ function render(){
   document.querySelectorAll(".thrTw").forEach(el => el.textContent = temp(settings.tw).replace("+",""));
   document.querySelectorAll(".thrWind").forEach(el => el.textContent = num(settings.wind, 0) + " km/h");
   if(!results) return;
-  document.getElementById("results").classList.remove("hidden");
+  document.querySelectorAll(".res").forEach(el => el.classList.remove("hidden"));
+  document.querySelectorAll(".empty").forEach(el => el.classList.add("hidden"));
   renderBasis(); renderDays(); renderStarts(); renderChart(); renderSpaghetti(); renderAltTable(); renderModelTable(); renderMissing();
 }
 
@@ -921,7 +958,7 @@ function renderModelTable(){
   document.getElementById("tblModels").innerHTML = `<table><thead><tr><th></th>${dayHead()}</tr></thead><tbody>${
     ens.length ? sep("Modèles d'ensemble (chances d'au moins 4 h)") + ensRows : ""}${
     det.length ? sep("Modèles déterministes (heures de production prévues)") + detRows : ""}</tbody></table>
-    <div class="small muted" style="margin-top:6px"><span class="used">✓</span> = modèle utilisé dans le calcul (voir « Modèles utilisés »).</div>`;
+    <div class="small muted" style="margin-top:6px"><span class="used">✓</span> = modèle utilisé dans le calcul (onglet Réglages › Modèles utilisés).</div>`;
 }
 function renderMissing(){
   const sec = document.getElementById("secMissing");
@@ -1057,8 +1094,10 @@ function renderSpaghetti(){
   document.getElementById("spagSvg").addEventListener("pointermove", ev => { if(ev.pointerType === "mouse"){ const i = ev.target.getAttribute("data-i"); if(i != null) showSpag(+i); } });
   const R = results[selAlt], first = R && R.windows.length ? R.windows[0].s : 0;
   showSpag(first);
-  document.getElementById("spagScroll").scrollLeft = Math.max(0, first * CH.step - 60);  // montre l'heure détaillée
+  spagScrollX = Math.max(0, first * CH.step - 60);   // montre l'heure détaillée
+  document.getElementById("spagScroll").scrollLeft = spagScrollX;
 }
+let spagScrollX = 0;
 function showSpag(i){
   const d = spagData; if(!d) return;
   const sel = document.getElementById("spSel"); if(sel) sel.setAttribute("x", i * CH.step);
@@ -1072,7 +1111,7 @@ function showSpag(i){
 }
 
 /* ---------- Choix des modèles ---------- */
-const NO_MODEL_TXT = "Aucun modèle choisi n'a de prévision. Ouvrez « Modèles utilisés » et cochez au moins un modèle disponible.";
+const NO_MODEL_TXT = "Aucun modèle choisi n'a de prévision. Dans l'onglet Réglages › Modèles utilisés, cochez au moins un modèle disponible.";
 function usedModels(){ return models.filter(m => selModels.has(mkey(m.kind, m.id))); }
 function modelState(kind, id){
   if(!results) return null;                       // pas encore calculé
@@ -1226,6 +1265,32 @@ document.addEventListener("click", ev => {
 document.addEventListener("keydown", ev => { if(ev.key === "Escape") closeBubble(); });
 addEventListener("resize", closeBubble);
 
+/* ---------- Onglets ---------- */
+const STORE_TAB = "neigeSB.onglet";
+const TABS = ["resume", "graphs", "tables", "reglages"];
+let curTab = "resume";
+function showTab(t, scrollTop){
+  if(!TABS.includes(t)) t = "resume";
+  curTab = t; saveJSON(STORE_TAB, t);
+  closeBubble();
+  TABS.forEach(x => {
+    document.getElementById("tab-" + x).classList.toggle("hidden", x !== t);
+    const b = document.getElementById("tb-" + x);
+    b.setAttribute("aria-selected", x === t); b.tabIndex = x === t ? 0 : -1;
+  });
+  document.getElementById("altBox").classList.toggle("hidden", t === "reglages");   // l'altitude ne sert pas aux réglages
+  if(t === "graphs") document.getElementById("spagScroll").scrollLeft = spagScrollX;
+  if(scrollTop) scrollTo({top: 0});
+}
+document.querySelector(".tabbar").addEventListener("click", ev => {
+  const b = ev.target.closest("button[data-tab]"); if(b) showTab(b.dataset.tab, true);
+});
+document.querySelector(".tabbar").addEventListener("keydown", ev => {   // flèches gauche/droite au clavier
+  const d = ev.key === "ArrowRight" ? 1 : ev.key === "ArrowLeft" ? -1 : 0; if(!d) return;
+  const t = TABS[(TABS.indexOf(curTab) + d + TABS.length) % TABS.length];
+  showTab(t, true); document.getElementById("tb-" + t).focus();
+});
+
 /* ---------- Réglages ---------- */
 function syncInputs(){ document.getElementById("inTw").value = settings.tw; document.getElementById("inWind").value = settings.wind; }
 function applySettings(){
@@ -1295,6 +1360,7 @@ document.getElementById("btnReset").addEventListener("click", () => { Object.ass
 })();
 setupHomeIcon();
 syncInputs();
+showTab(loadJSON(STORE_TAB) || "resume");
 render();
 </script>
 </body>

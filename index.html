@@ -38,7 +38,7 @@ button{font:inherit;color:inherit;cursor:pointer}
 #btnCalc:active{transform:scale(.99)}
 #status{color:var(--ink2);font-size:.92rem;margin:8px 2px 0;min-height:1.3em}
 #status.err{color:var(--bad)}
-.alts{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.alts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .alts button{min-height:60px;border-radius:12px;border:1px solid var(--line);background:var(--card2);padding:6px 2px;line-height:1.15}
 .alts button b{display:block;font-size:1.1rem}
 .alts button small{display:block;color:var(--muted);font-size:.7rem;margin-top:2px}
@@ -174,7 +174,7 @@ footer a{color:var(--ink2)}
     <details>
       <summary>Comment c'est calculé</summary>
       <p><b>1. Les prévisions.</b> Au moment où vous appuyez sur « Calculer », la page demande les prévisions heure par heure à Open-Meteo
-        (service gratuit) pour les 5 altitudes de la station : température de l'air, humidité et vent à 10 m. Les prévisions sont
+        (service gratuit) pour les 6 altitudes de la station : température de l'air, humidité et vent à 10 m. Les prévisions sont
         corrigées pour l'altitude exacte de chaque point. Rien n'est enregistré sur un serveur.</p>
       <p><b>2. La température humide.</b> C'est la température qui compte pour faire de la neige : plus l'air est sec, plus elle est
         basse que la température de l'air. Elle est calculée à partir de la température, de l'humidité et de la pression de l'air à
@@ -210,6 +210,8 @@ footer a{color:var(--ink2)}
 
 /* ---------- Configuration ---------- */
 const ALTS = [
+  // 1450 m : point provisoire (le plus proche du front de neige à ~1450 m sur le relief), à confirmer.
+  {alt:1450, lat:42.7556, lon:0.5747, name:"bas de station"},
   {alt:1800, lat:42.7576, lon:0.5747, name:"front de neige"},
   {alt:1900, lat:42.7530, lon:0.5650, name:""},
   {alt:2000, lat:42.7480, lon:0.5560, name:""},
@@ -251,7 +253,8 @@ const DET_MODELS = [
 const DEFAULTS = {tw:-2.5, wind:15};
 const MIN_WINDOW_H = 3, DAY_MIN_H = 4, FINE_HORIZON_H = 48;
 const STORE_KEY = "neigeSB.reglages";
-const STORE_ALT = "neigeSB.altitude";
+const STORE_ALT = "neigeSB.alt";   // altitude choisie, en mètres
+const REF_ALT = 1800;               // point de contrôle des modèles (front de neige)
 
 /* ---------- Stockage local (réglages) ---------- */
 function loadJSON(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
@@ -260,8 +263,10 @@ const settings = Object.assign({}, DEFAULTS);
 (function(){ const s = loadJSON(STORE_KEY);
   if(s && isFinite(s.tw)) settings.tw = +s.tw;
   if(s && isFinite(s.wind)) settings.wind = +s.wind; })();
-let selAlt = 0;
-(function(){ const a = loadJSON(STORE_ALT); if(Number.isInteger(a) && a>=0 && a<ALTS.length) selAlt = a; })();
+const REF_IDX = ALTS.findIndex(a => a.alt === REF_ALT);
+let selAlt = REF_IDX;
+(function(){ const i = ALTS.findIndex(a => a.alt === loadJSON(STORE_ALT)); if(i >= 0) selAlt = i;
+  try{ localStorage.removeItem("neigeSB.altitude"); }catch(e){} })(); // ancienne clé (numéro de bouton)
 
 /* ---------- Physique ---------- */
 function pressureAt(alt){ return 1013.25 * Math.pow(1 - 2.25577e-5 * alt, 5.25588); }
@@ -415,7 +420,7 @@ async function calculate(){
     if(r.status === "rejected"){ miss.push({label:j.meta.label, kind:j.kind, id:j.meta.id, reason:r.reason && r.reason.message || "erreur"}); return; }
     const m = r.value;
     // Garde le modèle seulement s'il renvoie des données au point 1800 m
-    const p0 = m.points[0];
+    const p0 = m.points[REF_IDX];
     let n = 0, last = null;
     p0.time.forEach((t, k) => {
       if(t < nowKey) return;
@@ -428,7 +433,7 @@ async function calculate(){
   models = ok; missing = miss;
   // axe horaire : union des heures, à partir de l'heure en cours
   const set = new Set();
-  models.forEach(m => m.points[0].time.forEach(t => { if(t >= nowKey) set.add(t); }));
+  models.forEach(m => m.points[REF_IDX].time.forEach(t => { if(t >= nowKey) set.add(t); }));
   axis = [...set].sort();
   // limite à 7 jours
   const maxH = 7 * 24;
@@ -737,7 +742,7 @@ function setupHomeIcon(){
 document.getElementById("btnCalc").addEventListener("click", calculate);
 document.getElementById("alts").addEventListener("click", ev => {
   const b = ev.target.closest("button[data-alt]"); if(!b) return;
-  selAlt = +b.dataset.alt; saveJSON(STORE_ALT, selAlt); render();
+  selAlt = +b.dataset.alt; saveJSON(STORE_ALT, ALTS[selAlt].alt); render();
 });
 document.querySelectorAll("[data-step]").forEach(b => b.addEventListener("click", () => {
   const k = b.dataset.step; setSetting(k, settings[k] + parseFloat(b.dataset.d));

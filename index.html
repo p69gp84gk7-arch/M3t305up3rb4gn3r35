@@ -127,6 +127,7 @@ footer a{color:var(--ink2)}
 .seg-ctl button{min-height:40px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card2);font-size:.88rem}
 .seg-ctl button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
 #spagInfo{margin-top:8px;font-size:.92rem;min-height:2.8em;color:var(--ink2)}
+.more{width:100%;min-height:48px;margin-top:10px;border-radius:12px;border:1px dashed var(--line);background:none;color:var(--accent);font-weight:600}
 .hidden{display:none!important}
 </style>
 </head>
@@ -186,12 +187,14 @@ footer a{color:var(--ink2)}
       <div class="small muted" style="margin-bottom:8px">Chances d'avoir au moins 4 h de production dans la journée, et heures
         théoriques de démarrage → arrêt (dernière heure où la majorité des scénarios dit oui).</div>
       <div class="days" id="days"></div>
+      <button type="button" class="more" id="moreDays"></button>
     </section>
 
     <section id="secStarts">
       <h2>Démarrages possibles — <span class="altName"></span></h2>
       <div id="headline" class="headline"></div>
       <div id="windows"></div>
+      <button type="button" class="more" id="moreWins"></button>
     </section>
 
     <section>
@@ -208,7 +211,7 @@ footer a{color:var(--ink2)}
     <section id="secSpag">
       <h2>Diagramme des scénarios — <span class="altName"></span></h2>
       <div class="small muted">Chaque ligne fine est un scénario du modèle choisi, comme sur les diagrammes d'ensemble de Meteociel
-        (GFS : 30 scénarios + 1 de contrôle). Plus les lignes sont serrées, plus la prévision est sûre.</div>
+        (GFS : 30 scénarios + 1 de contrôle, sur 16 jours). Plus les lignes sont serrées, plus la prévision est sûre.</div>
       <div class="seg-ctl" id="spagModels" aria-label="Modèle du diagramme"></div>
       <div class="seg-ctl" id="spagVars" aria-label="Donnée affichée"></div>
       <div class="chart-wrap">
@@ -297,7 +300,8 @@ const VARS = "temperature_2m,relative_humidity_2m,wind_speed_10m";
 const ENS_MODELS = [
   {id:"ecmwf_ifs025", label:"ECMWF (Europe)"},
   {id:"ecmwf_aifs025", label:"ECMWF IA (Europe)"},
-  {id:"gfs025", label:"GFS (États-Unis)"},
+  // gfs_seamless = les 31 scénarios du GEFS (0,25° jusqu'à 10 j, puis 0,5°) : va jusqu'à 16 jours, comme sur Meteociel
+  {id:"gfs_seamless", label:"GFS (États-Unis)"},
   {id:"icon_seamless_eps", label:"ICON (Allemagne)"},
   {id:"gem_global", label:"GEM (Canada)"},
   {id:"ukmo_global_ensemble_20km", label:"UKMO (Royaume-Uni)"}
@@ -324,6 +328,7 @@ const DET_MODELS = [
   {id:"jma_gsm", label:"JMA (Japon)", res:"55 km"}
 ];
 const DEFAULTS = {tw:-2.5, wind:15};
+const FORECAST_DAYS = 16, FIRST_DAYS = 7;   // 16 jours demandés ; les 7 premiers affichés d'office
 const MIN_WINDOW_H = 3, DAY_MIN_H = 4, FINE_HORIZON_H = 48;
 const STORE_KEY = "neigeSB.reglages";
 const STORE_MODELS = "neigeSB.modeles";
@@ -350,7 +355,7 @@ const settings = Object.assign({}, DEFAULTS);
 const REF_IDX = ALTS.findIndex(a => a.alt === REF_ALT);
 let selModels = new Set(DEFAULT_SEL);
 (function(){ const a = loadJSON(STORE_MODELS);
-  if(Array.isArray(a)) selModels = new Set(a.filter(k => ALL_KEYS.includes(k))); })();
+  if(Array.isArray(a)) selModels = new Set(a.map(k => k === "ens:gfs025" ? "ens:gfs_seamless" : k).filter(k => ALL_KEYS.includes(k))); })();
 let selAlt = REF_IDX;
 (function(){ const i = ALTS.findIndex(a => a.alt === loadJSON(STORE_ALT)); if(i >= 0) selAlt = i;
   try{ localStorage.removeItem("neigeSB.altitude"); }catch(e){} })(); // ancienne clé (numéro de bouton)
@@ -436,7 +441,7 @@ function buildURL(base, model){
     "models=" + model,
     "timezone=Europe%2FParis",
     "wind_speed_unit=kmh",
-    "forecast_days=7"
+    "forecast_days=" + FORECAST_DAYS
   ];
   return base + "?" + q.join("&");
 }
@@ -522,8 +527,8 @@ async function calculate(){
   const set = new Set();
   models.forEach(m => m.points[REF_IDX].time.forEach(t => { if(t >= nowKey) set.add(t); }));
   axis = [...set].sort();
-  // limite à 7 jours
-  const maxH = 7 * 24;
+  // limite à FORECAST_DAYS jours
+  const maxH = FORECAST_DAYS * 24;
   if(axis.length > maxH) axis = axis.slice(0, maxH);
   axisIdx = new Map(axis.map((t, i) => [t, i]));
   days = [];
@@ -535,11 +540,16 @@ async function calculate(){
   // journal de contrôle (portée de chaque modèle)
   console.info("Modèles retenus :", models.map(m => `${m.kind} ${m.id} : ${m.validHours} h (jusqu'à ${m.lastTime})`));
   if(miss.length) console.info("Modèles indisponibles :", miss.map(m => `${m.kind} ${m.id} : ${m.reason}`));
-  btn.disabled = false; btn.textContent = "Calculer";
-  if(!models.length){ setStatus("Aucune prévision reçue. Vérifiez la connexion et réessayez.", true); return; }
+  if(!models.length){
+    btn.disabled = false; btn.textContent = "Calculer";
+    setStatus("Aucune prévision reçue. Vérifiez la connexion et réessayez.", true); return;
+  }
+  setStatus("Calcul en cours…");
+  await new Promise(r => setTimeout(r, 30));   // laisse le téléphone afficher le message
+  analyse(); render();
   const nEns = models.filter(m => m.kind === "ens").length, nDet = models.length - nEns;
   setStatus(`Prévisions du ${dayLabel(todayKey, true)} à ${fetchedAt} · ${nEns} modèles d'ensemble, ${nDet} modèles fins.`);
-  analyse(); render();
+  btn.disabled = false; btn.textContent = "Calculer";
 }
 function setStatus(txt, err){ const s = document.getElementById("status"); s.textContent = txt; s.classList.toggle("err", !!err); }
 
@@ -676,9 +686,11 @@ function slopeSVG(cols){
 }
 function renderDays(){
   const box = document.getElementById("days");
-  if(!usedModels().length){ box.innerHTML = `<div class="small muted">${NO_MODEL_TXT}</div>`; return; }
+  if(!usedModels().length){ box.innerHTML = `<div class="small muted">${NO_MODEL_TXT}</div>`; moreBtn("moreDays", 0); return; }
   const idxs = DIAG_ALTS.map(alt => ALTS.findIndex(a => a.alt === alt));
-  box.innerHTML = days.map((d, di) => {
+  const nShow = showAllDays ? days.length : Math.min(days.length, FIRST_DAYS);
+  moreBtn("moreDays", days.length - FIRST_DAYS, showAllDays, "jours");
+  box.innerHTML = days.slice(0, nShow).map((d, di) => {
     const cols = [], rows = [];
     idxs.forEach((ai, k) => {
       const R = results[ai], p = R.dayPct[di];
@@ -695,9 +707,18 @@ function renderDays(){
   }).join("");
 }
 
+let showAllDays = false, showAllWins = false;
+function moreBtn(id, n, open, what){
+  const b = document.getElementById(id);
+  b.classList.toggle("hidden", !(n > 0));
+  if(n > 0) b.textContent = open ? (what === "jours" ? "Masquer les jours 8 à " + days.length : "Masquer les fenêtres après 7 jours")
+    : (what === "jours" ? `Voir les jours 8 à ${days.length} (prévision moins sûre)` : `Voir ${n} fenêtre${n > 1 ? "s" : ""} après 7 jours (prévision moins sûre)`);
+}
+
 function renderStarts(){
   const R = results[selAlt];
   const hl = document.getElementById("headline"), box = document.getElementById("windows");
+  moreBtn("moreWins", 0);
   if(!usedModels().length){ hl.innerHTML = NO_MODEL_TXT; box.innerHTML = ""; return; }
   const nowTxt = R.pct[0] != null ? `<div class="small ink2" style="margin-top:6px">En ce moment : ${pctTxt(R.pct[0])} de chances · air ${temp(R.T[0])} · humide ${temp(R.Tw[0])} ${lvlTag(R.Tw[0])} · vent ${num(R.W[0],0)}&nbsp;km/h</div>` : "";
   if(!R.windows.length){
@@ -708,7 +729,10 @@ function renderStarts(){
   const w0 = R.windows[0];
   hl.innerHTML = `Prochain démarrage possible :<span class="big">${cap(whenTxt(axis[w0.s]))}</span>${nowTxt}`;
   const fineModels = models.filter(m => m.kind === "det" && m.fine);
-  box.innerHTML = R.windows.map(w => {
+  const limit = days.length > FIRST_DAYS ? days[FIRST_DAYS].idx[0] : Infinity;   // début du 8e jour
+  const later = R.windows.filter(w => w.s >= limit).length;
+  moreBtn("moreWins", later, showAllWins, "fenêtres");
+  box.innerHTML = R.windows.filter(w => showAllWins || w.s < limit).map(w => {
     const b = bin(w.peak);
     let fine = "";
     if(w.s < FINE_HORIZON_H){
@@ -846,10 +870,11 @@ const SPAG_VARS = [
   {id:"w",  label:"Vent",         unit:"km/h", step:10}
 ];
 // run principal (déterministe) de la même famille, tracé en plus quand il est disponible
-const SPAG_MAIN = {gfs025:"gfs_global", ecmwf_ifs025:"ecmwf_ifs025", ecmwf_aifs025:"ecmwf_aifs025_single",
+const SPAG_MAIN = {gfs_seamless:"gfs_global", ecmwf_ifs025:"ecmwf_ifs025", ecmwf_aifs025:"ecmwf_aifs025_single",
   icon_seamless_eps:"icon_global", gem_global:"gem_global", ukmo_global_ensemble_20km:"ukmo_global_deterministic_10km"};
-const spag = {model:"gfs025", v:"tw"};
+const spag = {model:"gfs_seamless", v:"tw"};
 (function(){ const s = loadJSON(STORE_SPAG);
+  if(s && s.model === "gfs025") s.model = "gfs_seamless";
   if(s && ENS_MODELS.some(m => m.id === s.model)) spag.model = s.model;
   if(s && SPAG_VARS.some(v => v.id === s.v)) spag.v = s.v; })();
 const SP = {top:24, plot:150};
@@ -868,7 +893,7 @@ function renderSpaghetti(){
   const sec = document.getElementById("secSpag");
   sec.classList.toggle("hidden", !ens.length);
   if(!ens.length) return;
-  if(!ens.some(m => m.id === spag.model)) spag.model = (ens.find(m => m.id === "gfs025") || ens[0]).id;
+  if(!ens.some(m => m.id === spag.model)) spag.model = (ens.find(m => m.id === "gfs_seamless") || ens[0]).id;
   document.getElementById("spagModels").innerHTML = ens.map(m =>
     `<button type="button" data-spag-model="${m.id}" aria-pressed="${m.id === spag.model}">${esc(m.label.replace(/ \(.*\)/, ""))} · ${m.points[REF_IDX].members.length}</button>`).join("");
   document.getElementById("spagVars").innerHTML = SPAG_VARS.map(v =>
@@ -1037,6 +1062,8 @@ document.getElementById("alts").addEventListener("click", ev => {
   const b = ev.target.closest("button[data-alt]"); if(!b) return;
   selAlt = +b.dataset.alt; saveJSON(STORE_ALT, ALTS[selAlt].alt); render();
 });
+document.getElementById("moreDays").addEventListener("click", () => { showAllDays = !showAllDays; renderDays(); });
+document.getElementById("moreWins").addEventListener("click", () => { showAllWins = !showAllWins; renderStarts(); });
 document.getElementById("secSpag").addEventListener("click", ev => {
   const bm = ev.target.closest("button[data-spag-model]"), bv = ev.target.closest("button[data-spag-var]");
   if(!bm && !bv) return;

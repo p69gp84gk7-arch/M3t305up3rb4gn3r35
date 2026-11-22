@@ -21,7 +21,9 @@ Chaque fusion d'une pull request dans `main` met la page à jour automatiquement
 
 ## Ajouter la page sur l'écran d'accueil du téléphone
 
-L'icône est un flocon ❄️ et le nom court est « Neige SB ».
+L'icône est le logo de l'application, un nuage avec un flocon sur fond bleu nuit, et le nom court est « Neige SB ».
+Le logo est dessiné une seule fois dans la page (SVG de l'en-tête) ; l'icône du navigateur et celle de
+l'écran d'accueil (PNG 192 et 512 px) en sont tirées automatiquement.
 
 - **iPhone (Safari)** : ouvrir la page, toucher le bouton **Partager** (carré avec une flèche),
   puis **Sur l'écran d'accueil** → **Ajouter**.

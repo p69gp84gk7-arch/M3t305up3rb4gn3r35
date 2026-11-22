@@ -42,7 +42,7 @@ l'altitude restent en haut. L'onglet ouvert est gardé dans le téléphone.
 | **Résumé** | Jour par jour, Démarrages possibles |
 | **Calendrier** | Calendrier à 15 jours façon Apple, temps de fonctionnement estimé (une barre par altitude) |
 | **Graphiques** | Heure par heure, Diagramme des scénarios |
-| **Tableaux** | Toutes les altitudes, Par modèle, Modèles indisponibles |
+| **Tableaux** | Toutes les altitudes, Par modèle, Modèles indisponibles (avec choix des modèles affichés) |
 | **Réglages** | Réglages des seuils, Modèles utilisés, Comment c'est calculé |
 
 
@@ -83,6 +83,13 @@ l'altitude restent en haut. L'onglet ouvert est gardé dans le téléphone.
 - **Bulles d'information** : un petit « i » à côté de chaque titre, de chaque tableau et de chaque modèle
   (dans « Modèles utilisés » et dans le tableau « Par modèle »). En le touchant, une bulle explique
   simplement ce que montre le bloc, ou d'où vient le modèle, sa précision et sa portée.
+
+## Choix des modèles affichés dans le tableau
+
+Dans l'onglet **Tableaux**, au-dessus du tableau « Par modèle », le petit bloc **Modèles à afficher** permet de
+choisir les lignes du tableau : un bouton par modèle disponible, et des choix tout prêts (Tous, Utilisés dans le
+calcul, Ensembles, Déterministes, Météo-France). Le choix est gardé dans le téléphone. Il ne change pas le
+calcul (qui se règle dans Réglages › Modèles utilisés).
 
 ## Calendrier à 15 jours
 

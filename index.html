@@ -246,6 +246,13 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
 .cal-r .t b.now{position:absolute;top:-3px;bottom:-3px;width:2px;background:#e8eef5;border-radius:1px}
 .cal-r .h{font-size:.74rem;text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
 .cal-info{font-size:.85rem;color:var(--ink2);margin:4px 0 2px 52px;min-height:0}
+/* Choix des modèles affichés dans le tableau « Par modèle » */
+.tf{margin:0 0 10px;border:1px solid var(--line);border-radius:12px;padding:6px 10px}
+.tf summary{min-height:40px}
+.tf-chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 6px}
+.tf-chips button{min-height:38px;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:none;color:var(--muted);font-size:.84rem}
+.tf-chips button[aria-pressed="true"]{background:#1a2c42;border-color:var(--accent);color:var(--ink)}
+.tf-chips button[aria-pressed="true"]::before{content:"✓ ";color:var(--accent)}
 .hidden{display:none!important}
 </style>
 </head>
@@ -371,6 +378,11 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
         <h2>Par modèle — <span class="altName"></span> <button type="button" class="info" data-info="tblModels" aria-label="Explication" aria-expanded="false">i</button></h2>
         <div class="small muted" style="margin-bottom:8px">Modèles d'ensemble : chances d'avoir au moins 4 h dans la journée, et heures où la majorité des scénarios dit oui.
           Modèles fins : nombre d'heures de production prévues, et lesquelles.</div>
+        <details class="tf" id="tfBox">
+          <summary>Modèles à afficher <span class="small muted" id="tfSum" style="font-weight:400"></span></summary>
+          <div class="presets" id="tfPresets"></div>
+          <div class="tf-chips" id="tfChips"></div>
+        </details>
         <div class="tbl-wrap" id="tblModels"></div>
       </section>
 
@@ -1255,8 +1267,28 @@ function renderAltTable(){
     `<tr><th>${a.alt} m</th>${results[ai].dayPct.map(p => cellPct(p, "", "c" + (ai === selAlt ? " sel-alt" : ""))).join("")}</tr>`).join("");
   document.getElementById("tblAlts").innerHTML = `<table><thead><tr><th></th>${dayHead()}</tr></thead><tbody>${rows}</tbody></table>`;
 }
+/* Modèles à afficher dans le tableau (n'affecte pas le calcul) */
+const STORE_TF = "neigeSB.tableModeles";
+let tableShow = null;   // null = tous ; sinon ensemble de clés "ens:id" / "det:id"
+(function(){ const a = loadJSON(STORE_TF); if(Array.isArray(a)) tableShow = new Set(a); })();
+const TF_PRESETS = [
+  {label:"Tous", keys: () => null},
+  {label:"Utilisés dans le calcul", keys: () => new Set(selModels)},
+  {label:"Ensembles", keys: () => new Set(models.filter(m => m.kind === "ens").map(m => mkey(m.kind, m.id)))},
+  {label:"Déterministes", keys: () => new Set(models.filter(m => m.kind === "det").map(m => mkey(m.kind, m.id)))},
+  {label:"Météo-France", keys: () => new Set(["meteofrance_arome_france_hd", "meteofrance_arome_france", "meteofrance_arpege_europe", "meteofrance_seamless"].map(id => mkey("det", id)))}
+];
+const tfShown = m => !tableShow || tableShow.has(mkey(m.kind, m.id));
+function renderTableFilter(){
+  const n = models.filter(tfShown).length;
+  document.getElementById("tfSum").textContent = `— ${n} sur ${models.length}`;
+  document.getElementById("tfPresets").innerHTML = TF_PRESETS.map((p, i) => `<button type="button" data-tfp="${i}">${p.label}</button>`).join("");
+  const chip = m => `<button type="button" data-tf="${mkey(m.kind, m.id)}" aria-pressed="${tfShown(m)}">${m.kind === "ens" ? esc(m.label.replace(/ \(.*\)/, "")) + " · ens." : esc(m.label)}</button>`;
+  document.getElementById("tfChips").innerHTML = models.filter(m => m.kind === "ens").map(chip).join("") + models.filter(m => m.kind === "det").map(chip).join("");
+}
 function renderModelTable(){
-  const ens = models.filter(m => m.kind === "ens"), det = models.filter(m => m.kind === "det");
+  renderTableFilter();
+  const ens = models.filter(m => m.kind === "ens" && tfShown(m)), det = models.filter(m => m.kind === "det" && tfShown(m));
   const order = id => DET_MODELS.findIndex(d => d.id === id);
   det.sort((a, b) => order(a.id) - order(b.id));
   const detCell = (m, di) => {
@@ -1276,6 +1308,9 @@ function renderModelTable(){
     return `<tr><th>${used(m)}${esc(m.label)}${infoBtn("m:det:" + m.id)}<br><small class="muted">${meta.res} · ${m.validHours} h</small></th>${days.map((d, di) => detCell(m, di)).join("")}</tr>`;
   }).join("");
   const sep = t => `<tr><th colspan="${days.length + 1}" style="position:static;background:none;color:var(--muted);font-size:.78rem;padding-top:10px">${t}</th></tr>`;
+  if(!ens.length && !det.length){
+    document.getElementById("tblModels").innerHTML = `<p class="small muted">Aucun modèle à afficher : choisissez-en dans « Modèles à afficher ».</p>`; return;
+  }
   document.getElementById("tblModels").innerHTML = `<table><thead><tr><th></th>${dayHead()}</tr></thead><tbody>${
     ens.length ? sep("Modèles d'ensemble (chances d'au moins 4 h)") + ensRows : ""}${
     det.length ? sep("Modèles déterministes (heures de production prévues)") + detRows : ""}</tbody></table>
@@ -1539,7 +1574,9 @@ const INFO = {
   tblModels: ["Par modèle", `<p>Le détail de chaque modèle pour l'altitude choisie, jour par jour.</p><ul><li><b>Ensembles</b> :
     % de scénarios avec au moins 4 h de production, et en petit les heures où la majorité dit oui.</li><li><b>Déterministes</b> :
     nombre d'heures de production prévues, et lesquelles. « — » : le modèle ne va pas jusque-là.</li></ul><p>✓ vert : modèle
-    utilisé dans le calcul. Touchez le « i » d'un modèle pour sa description.</p>`],
+    utilisé dans le calcul. Touchez le « i » d'un modèle pour sa description.</p><p><b>Modèles à afficher</b> : ouvrez ce petit bloc
+    pour choisir les lignes du tableau (par exemple seulement Météo-France, ou seulement les modèles utilisés dans le calcul). Cela ne
+    change pas le calcul : pour ça, voir l'onglet Réglages › Modèles utilisés.</p>`],
   simple: ["Mode simplifié", `<p>Pour chaque jour, la réponse dépend des chances d'avoir au moins 4 h de production dans la
     journée, à l'altitude choisie :</p><ul><li><b class="ans-oui">OUI</b> : 70 % de chances ou plus ;</li><li><b class="ans-pe">PEUT-ÊTRE</b> :
     de 40 à 69 % ;</li><li><b class="ans-non">NON</b> : moins de 40 %.</li></ul><p>Les heures indiquent la période où la majorité des
@@ -1692,6 +1729,18 @@ document.getElementById("btnCalc").addEventListener("click", calculate);
 document.getElementById("alts").addEventListener("click", ev => {
   const b = ev.target.closest("button[data-alt]"); if(!b) return;
   selAlt = +b.dataset.alt; saveJSON(STORE_ALT, ALTS[selAlt].alt); render();
+});
+document.getElementById("tfBox").addEventListener("click", ev => {
+  const c = ev.target.closest("button[data-tf]"), p = ev.target.closest("button[data-tfp]");
+  if(!c && !p) return;
+  if(p) tableShow = TF_PRESETS[+p.dataset.tfp].keys();
+  if(c){
+    if(!tableShow) tableShow = new Set(models.map(m => mkey(m.kind, m.id)));
+    const k = c.dataset.tf; tableShow.has(k) ? tableShow.delete(k) : tableShow.add(k);
+    if(models.every(m => tableShow.has(mkey(m.kind, m.id)))) tableShow = null;   // tout coché = « Tous »
+  }
+  saveJSON(STORE_TF, tableShow ? [...tableShow] : null);
+  if(results) renderModelTable();
 });
 document.getElementById("calGrid").addEventListener("click", ev => {
   const c = ev.target.closest(".cc[data-d]"); if(!c) return;

@@ -94,6 +94,21 @@ td.sel-alt{outline:2px solid var(--ink);outline-offset:-2px}
 .how ul{padding-left:20px}
 footer{color:var(--muted);font-size:.8rem;text-align:center;margin-top:20px}
 footer a{color:var(--ink2)}
+/* Jour par jour : petit schéma 3 altitudes */
+.days{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:8px}
+.day{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px 10px 8px}
+.day-h{font-weight:700;margin-bottom:4px}
+.day-h small{font-weight:400;color:var(--muted)}
+.day-b{display:flex;gap:8px;align-items:center}
+.day-b svg{flex:0 0 66px}
+.day-l{list-style:none;margin:0;padding:0;flex:1;min-width:0}
+.day-l li{display:grid;grid-template-columns:56px 48px 1fr;align-items:center;gap:6px;padding:3px 0;font-size:.9rem}
+.day-l .a{color:var(--ink2);font-weight:600}
+.day-l .p{font-weight:700;text-align:center;border-radius:6px;padding:2px 0}
+.day-l .t{line-height:1.2}
+.day-l .t small{color:var(--muted)}
+.day-l .seg{display:block}
+.day-l .nw{white-space:nowrap}
 .hidden{display:none!important}
 </style>
 </head>
@@ -134,6 +149,13 @@ footer a{color:var(--ink2)}
   </section>
 
   <div id="results" class="hidden">
+    <section id="secDays">
+      <h2>Jour par jour — 1450, 1800 et 2000 m</h2>
+      <div class="small muted" style="margin-bottom:8px">Chances d'avoir au moins 4 h de production dans la journée, et heures
+        théoriques de démarrage → arrêt (dernière heure où la majorité des scénarios dit oui).</div>
+      <div class="days" id="days"></div>
+    </section>
+
     <section id="secStarts">
       <h2>Démarrages possibles — <span class="altName"></span></h2>
       <div id="headline" class="headline"></div>
@@ -562,7 +584,50 @@ function render(){
   document.querySelectorAll(".thrWind").forEach(el => el.textContent = num(settings.wind, 0) + " km/h");
   if(!results) return;
   document.getElementById("results").classList.remove("hidden");
-  renderStarts(); renderChart(); renderAltTable(); renderModelTable(); renderMissing();
+  renderDays(); renderStarts(); renderChart(); renderAltTable(); renderModelTable(); renderMissing();
+}
+
+/* Jour par jour : schéma de la pente avec 3 altitudes */
+const DIAG_ALTS = [2000, 1800, 1450];   // du haut vers le bas
+function daySegments(R, d){
+  const a = d.idx[0], b = d.idx[d.idx.length - 1];
+  return R.windows.filter(w => w.e >= a && w.s <= b).map(w => {
+    const start = w.s >= a ? `${hourOf(axis[w.s])}\u00a0h` : `<small>veille</small>`;
+    const endDay = dayKey(axis[w.e]);
+    const note = endDay === d.key ? "" : (endDay === dayKey(axis[Math.min(b + 1, axis.length - 1)]) ? "lendemain" : dayLabel(endDay, true));
+    return `<span class="seg"><span class="nw">${start} → ${hourOf(axis[w.e])}\u00a0h</span>${note ? ` <small>${note}</small>` : ""}</span>`;
+  });
+}
+function slopeSVG(cols){
+  // pente stylisée : bas à gauche, sommet à droite ; points placés selon l'altitude
+  const y = alt => 78 - (alt - 1350) / (2150 - 1350) * 68;
+  const x = yy => 6 + (80 - yy) / 72 * 64;
+  let s = `<polygon points="0,84 0,80 14,72 24,66 34,52 44,44 54,28 62,22 70,8 76,12 76,84" fill="#1f2d3b" stroke="#3a4b5d"/>`;
+  DIAG_ALTS.forEach((alt, k) => {
+    const yy = y(alt), xx = x(yy);
+    s += `<circle cx="${xx.toFixed(1)}" cy="${yy.toFixed(1)}" r="6.5" fill="${cols[k]}" stroke="#8597ab" stroke-width="1.5"/>`;
+  });
+  return `<svg width="66" height="80" viewBox="0 0 76 84" aria-hidden="true">${s}</svg>`;
+}
+function renderDays(){
+  const box = document.getElementById("days");
+  if(!models.some(m => m.kind === "ens")){ box.innerHTML = `<div class="small muted">Pas de modèle d'ensemble disponible.</div>`; return; }
+  const idxs = DIAG_ALTS.map(alt => ALTS.findIndex(a => a.alt === alt));
+  box.innerHTML = days.map((d, di) => {
+    const cols = [], rows = [];
+    idxs.forEach((ai, k) => {
+      const R = results[ai], p = R.dayPct[di];
+      const b = p == null ? null : bin(p);
+      cols.push(b ? b.c : "#26313d");
+      const segs = daySegments(R, d);
+      const t = segs.length ? segs.slice(0, 2).join("") + (segs.length > 2 ? ` <small>+${segs.length - 2}</small>` : "")
+                            : `<small>pas de démarrage</small>`;
+      rows.push(`<li><span class="a">${DIAG_ALTS[k]}\u00a0m</span><span class="p" style="background:${b ? b.c : "transparent"};color:${b ? b.ink : "var(--muted)"}">${pctTxt(p)}</span><span class="t">${t}</span></li>`);
+    });
+    const label = cap(dayLabel(d.key)) + (d.key === todayKey || d.key === tomorrowKey ? ` <small>${dayLabel(d.key, true)}</small>` : "");
+    return `<div class="day"><div class="day-h">${label}${d.key === todayKey ? ` <small>(heures restantes)</small>` : ""}</div>
+      <div class="day-b">${slopeSVG(cols)}<ul class="day-l">${rows.join("")}</ul></div></div>`;
+  }).join("");
 }
 
 function renderStarts(){

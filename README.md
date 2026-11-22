@@ -33,6 +33,10 @@ La page s'ouvre alors comme une application. Il faut une connexion internet pour
 ## Ce que montre la page
 
 - **Altitude** : gros boutons pour choisir 1450, 1800, 1900, 2000, 2100 ou 2200 m.
+- **Jour par jour** : pour chaque jour, un petit schéma de la pente avec 1450, 1800 et 2000 m
+  coloré selon les chances d'avoir au moins 4 h de production, et les heures théoriques de
+  démarrage → arrêt à chaque altitude (« veille » quand la production a commencé la veille,
+  « lendemain » quand elle s'arrête le lendemain).
 - **Démarrages possibles** : les périodes d'au moins 3 h où la majorité des scénarios météo
   disent « production possible », avec l'heure de démarrage et la dernière heure favorable,
   les chances au plus haut, la température de l'air et la température humide au démarrage et

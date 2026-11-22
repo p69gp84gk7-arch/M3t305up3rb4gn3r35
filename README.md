@@ -19,6 +19,19 @@ sera possible dans les 16 prochains jours (comme les diagrammes d'ensemble de Me
 
 Chaque fusion d'une pull request dans `main` met la page à jour automatiquement.
 
+## Mettre à jour
+
+Le bouton **⟳ Mettre à jour**, à droite de la ligne d'état en haut de la page :
+
+1. recharge l'application depuis GitHub Pages en contournant le cache du téléphone, pour récupérer la dernière
+   version publiée après la fusion d'une pull request (utile surtout depuis l'écran d'accueil, où il n'y a pas
+   de bouton « actualiser ») ;
+2. relance aussitôt le calcul avec les prévisions du moment.
+
+Si une nouvelle version a été installée, la ligne d'état l'indique. La date de la version installée est affichée
+en bas de la page (« Version de l'application : … »). Sans connexion, la version actuelle est gardée et un
+message l'indique. GitHub Pages peut mettre une à deux minutes à publier une fusion.
+
 ## Ajouter la page sur l'écran d'accueil du téléphone
 
 L'icône est le logo de l'application, un nuage avec un flocon sur fond bleu nuit, et le nom court est « Neige SB ».

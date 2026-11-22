@@ -37,7 +37,11 @@ button{font:inherit;color:inherit;cursor:pointer}
 #btnCalc{width:100%;min-height:64px;border:0;border-radius:var(--r);background:var(--accent);color:var(--accent-ink);font-size:1.35rem;font-weight:700;letter-spacing:.3px}
 #btnCalc:disabled{opacity:.6}
 #btnCalc:active{transform:scale(.99)}
-#status{color:var(--ink2);font-size:.92rem;margin:8px 2px 0;min-height:1.3em}
+#status{color:var(--ink2);font-size:.92rem;margin:8px 2px 0;min-height:1.3em;flex:1;min-width:0}
+.status-row{display:flex;align-items:flex-start;gap:10px}
+.upd-btn{flex:0 0 auto;min-height:40px;margin-top:4px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card2);color:var(--ink);font-weight:600;font-size:.86rem;white-space:nowrap}
+.upd-btn:disabled{opacity:.6}
+#appVersion{display:block;margin-top:4px}
 #status.err{color:var(--bad)}
 .alts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .alts button{min-height:60px;border-radius:12px;border:1px solid var(--line);background:var(--card2);padding:6px 2px;line-height:1.15}
@@ -263,7 +267,10 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
   <p class="sub">Quand démarrer la production de neige à Superbagnères</p>
 
   <button id="btnCalc" type="button">Calculer</button>
-  <div id="status" role="status" aria-live="polite">Appuyez sur « Calculer » pour charger les prévisions.</div>
+  <div class="status-row">
+    <div id="status" role="status" aria-live="polite">Appuyez sur « Calculer » pour charger les prévisions.</div>
+    <button type="button" id="btnUpdate" class="upd-btn" title="Recharger l'application et les prévisions">⟳ Mettre à jour</button>
+  </div>
 
   <div id="altBox">
     <section aria-label="Choix de l'altitude">
@@ -475,7 +482,7 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
 
   <div id="bubble" class="hidden" role="dialog" aria-modal="false"></div>
 
-  <footer>Données météo : <a href="https://open-meteo.com/" rel="noopener">Open-Meteo.com</a> (licence CC BY 4.0)</footer>
+  <footer>Données météo : <a href="https://open-meteo.com/" rel="noopener">Open-Meteo.com</a> (licence CC BY 4.0)<span id="appVersion"></span></footer>
 </main>
 
 <nav class="tabbar" role="tablist" aria-label="Onglets">
@@ -753,9 +760,50 @@ async function calculate(){
   await new Promise(r => setTimeout(r, 30));   // laisse le téléphone afficher le message
   analyse(); render();
   const nEns = models.filter(m => m.kind === "ens").length, nDet = models.length - nEns;
-  setStatus(`Prévisions du ${dayLabel(todayKey, true)} à ${fetchedAt} · ${nEns} modèles d'ensemble, ${nDet} modèles fins.`);
+  setStatus(`${newVersionNote}Prévisions du ${dayLabel(todayKey, true)} à ${fetchedAt} · ${nEns} modèles d'ensemble, ${nDet} modèles fins.`);
+  newVersionNote = "";
   btn.disabled = false; btn.textContent = "Calculer";
 }
+/* ---------- Mise à jour : nouvelle version de l'application + nouvelles prévisions ---------- */
+const STORE_VERSION = "neigeSB.version", FLAG_UPDATE = "neigeSB.majEnCours";
+function versionTxt(){
+  // date de publication de la page (en-tête Last-Modified de GitHub Pages)
+  const d = new Date(document.lastModified);
+  if(isNaN(d)) return "";
+  return new Intl.DateTimeFormat("fr-FR", {timeZone:"Europe/Paris", day:"numeric", month:"long", year:"numeric", hour:"2-digit", minute:"2-digit"})
+    .format(d).replace(":", " h ");
+}
+async function updateApp(){
+  const btn = document.getElementById("btnUpdate");
+  btn.disabled = true; btn.textContent = "⟳ Mise à jour…";
+  const base = location.href.split("#")[0].split("?")[0];
+  try{
+    // recharge la page depuis le serveur (en contournant le cache), puis l'affiche
+    await fetch(base, {cache:"reload"});
+    try{ sessionStorage.setItem(FLAG_UPDATE, "1"); }catch(e){}
+    location.replace(base);
+  }catch(e){
+    // hors connexion (ou page ouverte en fichier local) : on garde la version actuelle et on relance seulement le calcul
+    btn.disabled = false; btn.textContent = "⟳ Mettre à jour";
+    if(location.protocol === "file:") calculate();
+    else setStatus("Mise à jour impossible : pas de connexion. Réessayez plus tard.", true);
+  }
+}
+function setupUpdate(){
+  const v = versionTxt();
+  document.getElementById("appVersion").textContent = v ? "Version de l'application : " + v : "";
+  document.getElementById("btnUpdate").addEventListener("click", updateApp);
+  let flagged = false;
+  try{ flagged = sessionStorage.getItem(FLAG_UPDATE) === "1"; sessionStorage.removeItem(FLAG_UPDATE); }catch(e){}
+  const before = loadJSON(STORE_VERSION);
+  saveJSON(STORE_VERSION, document.lastModified);
+  if(flagged){
+    newVersionNote = before && before !== document.lastModified ? "Nouvelle version de l'application installée (" + v + "). " : "Application à jour. ";
+    calculate();
+  }
+}
+let newVersionNote = "";   // message ajouté à la ligne d'état après une mise à jour
+
 function setStatus(txt, err){ const s = document.getElementById("status"); s.textContent = txt; s.classList.toggle("err", !!err); }
 
 /* ---------- Sûreté de la prévision ---------- */
@@ -1780,6 +1828,7 @@ setupHomeIcon();
 syncInputs();
 showTab(loadJSON(STORE_TAB) || "resume");
 setMode(loadJSON(STORE_MODE) === "simple");
+setupUpdate();
 document.getElementById("btnMode").addEventListener("click", () => { setMode(!document.body.classList.contains("simple")); scrollTo({top: 0}); });
 document.getElementById("btnFull").addEventListener("click", () => { setMode(false); showTab("resume", true); });
 render();

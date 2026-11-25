@@ -122,6 +122,24 @@ choisir les lignes du tableau : un bouton par modèle disponible, et des choix t
 calcul, Ensembles, Déterministes, Météo-France). Le choix est gardé dans le téléphone. Il ne change pas le
 calcul (qui se règle dans Réglages › Modèles utilisés).
 
+## Iso 0 °C et limite pluie-neige
+
+Dans l'onglet **Graphiques**, le graphique **Iso 0 °C et limite pluie-neige** montre heure par heure, sur 16 jours :
+
+- l'**iso 0 °C** (ligne orange) : altitude où l'air passe sous 0 °C ;
+- la **limite pluie-neige** (ligne bleue) : en dessous, il pleut ; au-dessus, il neige ;
+- les altitudes de la station en pointillés (1450 m, 2200 m et l'altitude choisie) ;
+- les **précipitations** en bas (mm/h), en blanc s'il neige à l'altitude choisie, en vert s'il pleut.
+
+Choix du modèle : **Moyenne des modèles** (par défaut, avec en zone claire l'écart entre modèles), ou AROME, ARPEGE,
+ECMWF, ICON, GFS, UKMO. Survoler ou toucher le graphique donne les valeurs de l'heure.
+
+**Calcul** : un appel par modèle (6 appels en plus, 29 au total) demande la température, l'humidité et l'altitude des
+niveaux 1000, 925, 850, 800, 700, 600 et 500 hPa au-dessus du plateau. L'iso 0 est la plus haute altitude où la
+température passe à 0 °C ; la limite pluie-neige est la plus haute altitude où la température humide passe à +1 °C
+(interpolation entre niveaux). Vérifié le 25/11/2026 : l'iso 0 calculé est à moins de 100 m de l'iso 0 fourni par
+GFS et ICON ; la limite pluie-neige est à ±250 m de celle d'ICON-EU. AROME HD ne fournit pas ces niveaux.
+
 ## Calendrier à 15 jours
 
 Onglet **Calendrier** :
@@ -270,7 +288,7 @@ Cas particuliers constatés le 22/11/2026 :
 ## Limites à connaître
 
 - Open-Meteo gratuit autorise 10 000 appels par jour et par adresse internet. Chaque appui sur
-  **Calculer** fait 23 appels (les 6 altitudes partent ensemble dans chaque appel) : pas de souci pour un usage normal depuis un téléphone.
+  **Calculer** fait 29 appels (les 6 altitudes partent ensemble dans chaque appel) : pas de souci pour un usage normal depuis un téléphone.
   Si le quota est dépassé, les modèles concernés apparaissent dans « Modèles indisponibles ».
 - Avec 16 jours, un calcul télécharge environ 8 Mo (surtout les ensembles ECMWF et ICON) :
   préférer le wifi ou une bonne couverture 4G.

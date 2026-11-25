@@ -1,5 +1,8 @@
 # ❄️ Neige SB — quand démarrer la production de neige à Superbagnères
 
+> 📘 **Mode d'emploi détaillé pour ordinateur (PDF, 26 pages, avec captures d'écran)** :
+> [docs/Neige-SB-mode-emploi-PC.pdf](docs/Neige-SB-mode-emploi-PC.pdf)
+
 Page web à utiliser surtout sur téléphone. Elle indique, pour chaque altitude du domaine
 (1450 m bas de station, 1800 m plateau, 1900 m booster, 2000 m, 2100 m haut de station et 2200 m), quand la production de neige
 sera possible dans les 16 prochains jours (comme les diagrammes d'ensemble de Meteociel).

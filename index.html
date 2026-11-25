@@ -131,7 +131,7 @@ footer a{color:var(--ink2)}
 .seg-ctl{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
 .seg-ctl button{min-height:40px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--card2);font-size:.88rem}
 .seg-ctl button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
-#spagInfo{margin-top:8px;font-size:.92rem;min-height:2.8em;color:var(--ink2)}
+#spagInfo,#isoInfo{margin-top:8px;font-size:.92rem;min-height:2.8em;color:var(--ink2)}
 .more{width:100%;min-height:48px;margin-top:10px;border-radius:12px;border:1px dashed var(--line);background:none;color:var(--accent);font-weight:600}
 /* Sûreté de la prévision */
 .conf{display:inline-block;font-size:.75rem;font-weight:700;padding:1px 8px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
@@ -422,6 +422,19 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
         <div id="spagInfo"></div>
         <div class="legend" id="spagLegend"></div>
       </section>
+
+      <section id="secIso">
+        <h2>Iso 0 °C et limite pluie-neige <button type="button" class="info" data-info="iso" aria-label="Explication" aria-expanded="false">i</button></h2>
+        <div class="small muted">Altitude de l'isotherme 0 °C et altitude sous laquelle la neige se change en pluie, heure par heure.
+          Comparez-les aux altitudes de la station : en dessous de la ligne bleue, il pleut ; au-dessus, il neige.</div>
+        <div class="seg-ctl" id="isoModels" aria-label="Modèle"></div>
+        <div class="chart-wrap">
+          <svg class="chart-axis" id="isoAxis" width="40" height="260" aria-hidden="true" style="flex-basis:40px"></svg>
+          <div class="chart-scroll" id="isoScroll"></div>
+        </div>
+        <div id="isoInfo"></div>
+        <div class="legend" id="isoLegend"></div>
+      </section>
     </div>
   </div>
 
@@ -526,7 +539,11 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
           <span class="conf conf-mid">~ moyenne</span>. Dans le diagramme des scénarios, la zone de sûreté (bande claire) contient
           8 scénarios sur 10 : plus elle est étroite, plus le modèle est sûr. Avec un seul scénario (modèle déterministe seul),
           la sûreté ne peut pas être calculée.</p>
-        <p><b>5. Les démarrages.</b> Une fenêtre commence à la première heure où au moins la moitié des scénarios disent oui, et
+        <p><b>Iso 0 °C et limite pluie-neige</b> (onglet Graphiques). Six modèles (AROME, ARPEGE, ECMWF, ICON, GFS, UKMO) donnent la
+        température et l'humidité à plusieurs altitudes au-dessus de la station. L'iso 0 °C est l'altitude où la température passe
+        à 0 °C ; la limite pluie-neige est l'altitude où la température humide passe à +1 °C : en dessous, la neige fond en pluie.
+        Précision d'environ 100 à 300 m.</p>
+      <p><b>5. Les démarrages.</b> Une fenêtre commence à la première heure où au moins la moitié des scénarios disent oui, et
           s'arrête à la dernière heure où c'est encore le cas. On ne garde que les fenêtres d'au moins 3 heures.</p>
         <p><b>6. Les modèles fins.</b> Pour les 48 prochaines heures, on ajoute l'avis des modèles à maille fine, plus précis en
           montagne à court terme, en particulier AROME HD de Météo-France (1,5 km). Ils ne donnent qu'un seul scénario : oui ou non.</p>
@@ -731,6 +748,55 @@ async function fetchJSON(url, timeoutMs){
     throw e;
   }finally{ clearTimeout(timer); }
 }
+/* ---------- Iso 0 °C et limite pluie-neige (températures en altitude) ---------- */
+// Modèles qui fournissent température, humidité et altitude des niveaux de pression (testé le 25/11/2026).
+// AROME HD n'en fournit pas.
+const ISO_MODELS = [
+  {id:"meteofrance_arome_france", label:"AROME"},
+  {id:"meteofrance_arpege_europe", label:"ARPEGE"},
+  {id:"ecmwf_ifs025", label:"ECMWF"},
+  {id:"icon_seamless", label:"ICON"},
+  {id:"gfs_global", label:"GFS"},
+  {id:"ukmo_global_deterministic_10km", label:"UKMO"}
+];
+const ISO_LEVELS = [1000, 925, 850, 800, 700, 600, 500];   // hPa
+const SNOW_TW = 1;   // limite pluie-neige : altitude où la température humide vaut +1 °C
+function isoURL(model){
+  const A = ALTS[REF_IDX], v = [];
+  ISO_LEVELS.forEach(l => v.push(`temperature_${l}hPa`, `relative_humidity_${l}hPa`, `geopotential_height_${l}hPa`));
+  v.push("precipitation");
+  return DET_API + "?" + ["latitude=" + A.lat, "longitude=" + A.lon, "hourly=" + v.join(","), "models=" + model,
+    "timezone=Europe%2FParis", "forecast_days=" + FORECAST_DAYS].join("&");
+}
+// plus haute altitude où l'on passe de « au-dessus du seuil » (en bas) à « en dessous » (en haut)
+function crossUp(prof, thr){
+  if(prof.length < 3) return null;
+  let best = null;
+  for(let i = 0; i + 1 < prof.length; i++){
+    const a = prof[i], b = prof[i+1];
+    if(a.v > thr && b.v <= thr) best = a.z + (thr - a.v) / (b.v - a.v) * (b.z - a.z);
+  }
+  if(best == null) best = prof[0].v <= thr ? prof[0].z : prof[prof.length - 1].z;   // tout froid : au plus bas ; tout chaud : au plus haut
+  return best;
+}
+function parseIso(json, meta){
+  const h = json.hourly;
+  if(!h || !Array.isArray(h.time)) throw new Error("pas de données horaires");
+  const n = h.time.length, iso0 = new Array(n).fill(null), snow = new Array(n).fill(null);
+  for(let j = 0; j < n; j++){
+    const prof = [], profw = [];
+    ISO_LEVELS.forEach(l => {
+      const T = (h[`temperature_${l}hPa`] || [])[j], RH = (h[`relative_humidity_${l}hPa`] || [])[j], Z = (h[`geopotential_height_${l}hPa`] || [])[j];
+      if(T == null || RH == null || Z == null) return;
+      prof.push({z:Z, v:T}); profw.push({z:Z, v:wetBulb(T, RH, l)});
+    });
+    prof.sort((a, b) => a.z - b.z); profw.sort((a, b) => a.z - b.z);
+    iso0[j] = crossUp(prof, 0); snow[j] = crossUp(profw, SNOW_TW);
+  }
+  return Object.assign({}, meta, {kind:"iso", time:h.time, iso0, snow, pr: h.precipitation || []});
+}
+let isoModels = [];   // modèles disponibles pour l'iso 0
+
 function parseModel(json, meta, kind){
   const arr = Array.isArray(json) ? json : [json];
   if(arr.length !== ALTS.length) throw new Error("réponse incomplète");
@@ -764,20 +830,26 @@ async function calculate(){
   setStatus("Demande des prévisions…");
   const jobs = [
     ...ENS_MODELS.map(m => ({meta:m, kind:"ens", url:buildURL(ENS_API, m.id)})),
-    ...DET_MODELS.map(m => ({meta:m, kind:"det", url:buildURL(DET_API, m.id)}))
+    ...DET_MODELS.map(m => ({meta:m, kind:"det", url:buildURL(DET_API, m.id)})),
+    ...ISO_MODELS.map(m => ({meta:m, kind:"iso", url:isoURL(m.id)}))
   ];
   let done = 0;
   const settled = await Promise.allSettled(jobs.map(j =>
-    fetchJSON(j.url, 30000).then(json => parseModel(json, j.meta, j.kind)).finally(() => {
+    fetchJSON(j.url, 30000).then(json => j.kind === "iso" ? parseIso(json, j.meta) : parseModel(json, j.meta, j.kind)).finally(() => {
       done++; setStatus(`Prévisions reçues : ${done} / ${jobs.length}…`);
     })
   ));
   const nowKey = parisNowKey();
-  const ok = [], miss = [];
+  const ok = [], miss = [], isoOk = [];
   settled.forEach((r, i) => {
     const j = jobs[i];
     if(r.status === "rejected"){ miss.push({label:j.meta.label, kind:j.kind, id:j.meta.id, reason:r.reason && r.reason.message || "erreur"}); return; }
     const m = r.value;
+    if(j.kind === "iso"){
+      if(m.time.some((t, k) => t >= nowKey && m.iso0[k] != null)) isoOk.push(m);
+      else miss.push({label:m.label, kind:"iso", id:m.id, reason:"pas de températures en altitude pour Superbagnères"});
+      return;
+    }
     // Garde le modèle seulement s'il renvoie des données au point 1800 m
     const p0 = m.points[REF_IDX];
     let n = 0, last = null;
@@ -789,7 +861,7 @@ async function calculate(){
     m.validHours = n; m.lastTime = last;
     ok.push(m);
   });
-  models = ok; missing = miss;
+  models = ok; missing = miss; isoModels = isoOk;
   // axe horaire : union des heures, à partir de l'heure en cours
   const set = new Set();
   models.forEach(m => m.points[REF_IDX].time.forEach(t => { if(t >= nowKey) set.add(t); }));
@@ -815,7 +887,7 @@ async function calculate(){
   await new Promise(r => setTimeout(r, 30));   // laisse le téléphone afficher le message
   analyse(); render();
   const nEns = models.filter(m => m.kind === "ens").length, nDet = models.length - nEns;
-  setStatus(`${newVersionNote}Prévisions du ${dayLabel(todayKey, true)} à ${fetchedAt} · ${nEns} modèles d'ensemble, ${nDet} modèles fins.`);
+  setStatus(`${newVersionNote}Prévisions du ${dayLabel(todayKey, true)} à ${fetchedAt} · ${nEns} modèles d'ensemble, ${nDet} modèles fins, ${isoModels.length} pour l'iso 0.`);
   newVersionNote = "";
   btn.disabled = false; btn.textContent = "Calculer";
 }
@@ -1136,7 +1208,7 @@ function render(){
   document.querySelectorAll(".res").forEach(el => el.classList.remove("hidden"));
   document.querySelectorAll(".empty").forEach(el => el.classList.add("hidden"));
   renderSimple();
-  renderBasis(); renderDays(); renderStarts(); renderChart(); renderSpaghetti(); renderCalendar(); renderAltTable(); renderModelTable(); renderMissing();
+  renderBasis(); renderDays(); renderStarts(); renderChart(); renderSpaghetti(); renderIso(); renderCalendar(); renderAltTable(); renderModelTable(); renderMissing();
 }
 
 /* Jour par jour : schéma de la pente avec 3 altitudes */
@@ -1422,7 +1494,7 @@ function renderMissing(){
   const sec = document.getElementById("secMissing");
   sec.classList.toggle("hidden", !missing.length);
   document.getElementById("missing").innerHTML = missing.map(m =>
-    `<li><b>${esc(m.label)}</b> <span class="muted">(${m.kind === "ens" ? "ensemble" : "modèle fin"})</span> : ${esc(m.reason)}</li>`).join("");
+    `<li><b>${esc(m.label)}</b> <span class="muted">(${m.kind === "ens" ? "ensemble" : m.kind === "iso" ? "iso 0 °C" : "modèle fin"})</span> : ${esc(m.reason)}</li>`).join("");
 }
 
 /* ---------- Diagramme des scénarios (spaghetti) ---------- */
@@ -1568,6 +1640,99 @@ function showSpag(i){
     (d.main && d.main[i] != null ? ` · run principal ${f(d.main[i])}` : "");
 }
 
+/* ---------- Graphique iso 0 °C et limite pluie-neige ---------- */
+const STORE_ISO = "neigeSB.iso";
+let isoSel = loadJSON(STORE_ISO) || "moy";   // "moy" = moyenne des modèles, sinon identifiant du modèle
+let isoData = null, isoScrollX = 0;
+const ISO_COL = {iso:"#f0a64b", snow:"#8ec5ff", rain:"#4fb8a8", snowfall:"#e8eef5"};
+function isoAligned(m){
+  const H = axis.length, a = new Array(H).fill(null), s = new Array(H).fill(null), p = new Array(H).fill(null);
+  m.time.forEach((t, j) => { const h = axisIdx.get(t); if(h === undefined) return; a[h] = m.iso0[j]; s[h] = m.snow[j]; p[h] = m.pr[j]; });
+  return {a, s, p};
+}
+function renderIso(){
+  const sec = document.getElementById("secIso");
+  sec.classList.toggle("hidden", !isoModels.length);
+  if(!isoModels.length) return;
+  if(isoSel !== "moy" && !isoModels.some(m => m.id === isoSel)) isoSel = "moy";
+  document.getElementById("isoModels").innerHTML = [`<button type="button" data-iso="moy" aria-pressed="${isoSel === "moy"}">Moyenne des modèles · ${isoModels.length}</button>`]
+    .concat(isoModels.map(m => `<button type="button" data-iso="${m.id}" aria-pressed="${isoSel === m.id}">${esc(m.label)}</button>`)).join("");
+  const H = axis.length, series = isoModels.filter(m => isoSel === "moy" || m.id === isoSel).map(isoAligned);
+  const agg = key => { const v = new Array(H).fill(null), lo = new Array(H).fill(null), hi = new Array(H).fill(null);
+    for(let h = 0; h < H; h++){ const x = series.map(s => s[key][h]).filter(y => y != null); if(!x.length) continue;
+      v[h] = mean(x); lo[h] = Math.min(...x); hi[h] = Math.max(...x); }
+    return {v, lo, hi}; };
+  const iso = agg("a"), snow = agg("s"), pr = agg("p");
+  const alt = ALTS[selAlt].alt, refs = [{alt:1450, lab:"bas 1450"}, {alt:2200, lab:"haut 2200"}];
+  if(!refs.some(r => r.alt === alt)) refs.push({alt, lab:alt + " m", sel:true}); else refs.find(r => r.alt === alt).sel = true;
+  // échelle verticale en mètres
+  let vmin = Infinity, vmax = -Infinity;
+  [iso.lo, iso.hi, snow.lo, snow.hi].forEach(arr => arr.forEach(x => { if(x != null){ vmin = Math.min(vmin, x); vmax = Math.max(vmax, x); } }));
+  // au moins 1200 → 2600 m pour toujours voir la station, et pas plus que nécessaire
+  // (bas de l'échelle limité à 500 m : plus bas, la valeur exacte reste donnée dans le détail)
+  vmin = Math.max(500, Math.min(isFinite(vmin) ? vmin - 100 : 1200, 1200)); vmax = Math.max(isFinite(vmax) ? vmax + 100 : 2600, 2600);
+  vmax = Math.min(vmax, 5000);
+  vmin = Math.floor(vmin / 500) * 500; vmax = Math.ceil(vmax / 500) * 500;
+  const st = (vmax - vmin) > 3000 ? 1000 : 500, t0 = Math.ceil(vmin / st) * st;   // graduations
+  const top = 26, plot = 170, y0 = top + plot, prY = y0 + 10, prH = 26, hTxtY = prY + prH + 14, Ht = hTxtY + 6, W = H * CH.step + 4;
+  const y = v => y0 - (Math.min(Math.max(v, vmin), vmax) - vmin) / (vmax - vmin) * plot;
+  const xc = i => i * CH.step + 1 + CH.bar / 2;
+  const path = arr => { let d = "", pen = false;
+    arr.forEach((v, i) => { if(v == null){ pen = false; return; } d += (pen ? "L" : "M") + xc(i).toFixed(1) + "," + y(v).toFixed(1); pen = true; }); return d; };
+  const band = (lo, hi) => { let out = "";
+    for(let i = 0; i < H; ){ if(lo[i] == null){ i++; continue; } let j = i; while(j + 1 < H && lo[j+1] != null) j++;
+      const up = [], dn = []; for(let k = i; k <= j; k++){ up.push(xc(k).toFixed(1) + "," + y(hi[k]).toFixed(1)); dn.unshift(xc(k).toFixed(1) + "," + y(lo[k]).toFixed(1)); }
+      out += `<polygon points="${up.concat(dn).join(" ")}"/>`; i = j + 1; } return out; };
+  let s = "";
+  for(let v = t0; v <= vmax + 1e-9; v += st) s += `<line x1="0" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="#223040"/>`;
+  days.forEach((d, di) => { const x = d.idx[0] * CH.step;
+    s += `<line x1="${x+0.5}" x2="${x+0.5}" y1="4" y2="${Ht}" stroke="#2a3846"/>`;
+    if(d.idx.length >= 4) s += `<text x="${x+4}" y="15" fill="#b3c1d0" font-size="12" font-weight="600">${dayLabel(d.key, true)}</text>`;
+    refs.forEach(r => { if(d.idx.length >= 8 && di % 2 === 0) s += `<text x="${x+4}" y="${y(r.alt) - 3}" fill="${r.sel ? "#6da7ec" : "#8597ab"}" font-size="9">${r.lab}</text>`; });
+  });
+  for(let i = 0; i < H; i++){ const hr = hourOf(axis[i]);
+    if(hr % 6 === 0 && hr !== 0) s += `<text x="${xc(i)}" y="${hTxtY}" fill="#8597ab" font-size="10" text-anchor="middle">${hr}h</text>`; }
+  refs.forEach(r => s += `<line x1="0" x2="${W}" y1="${y(r.alt)}" y2="${y(r.alt)}" stroke="${r.sel ? "#6da7ec" : "#5b6c7e"}" stroke-width="${r.sel ? 1.5 : 1}" stroke-dasharray="${r.sel ? "6 3" : "2 3"}"/>`);
+  if(series.length > 1){
+    s += `<g fill="${ISO_COL.iso}" fill-opacity=".18">${band(iso.lo, iso.hi)}</g><g fill="${ISO_COL.snow}" fill-opacity=".18">${band(snow.lo, snow.hi)}</g>`;
+  }
+  s += `<path d="${path(iso.v)}" fill="none" stroke="${ISO_COL.iso}" stroke-width="2.2"/>`;
+  s += `<path d="${path(snow.v)}" fill="none" stroke="${ISO_COL.snow}" stroke-width="2.2"/>`;
+  // précipitations (mm/h) : neige ou pluie à l'altitude choisie
+  s += `<line x1="0" x2="${W}" y1="${prY + prH}" y2="${prY + prH}" stroke="#2a3846"/>`;
+  for(let i = 0; i < H; i++){ const p = pr.v[i]; if(p == null || p < 0.05) continue;
+    const hh = Math.max(2, Math.min(p, 4) / 4 * prH), sn = snow.v[i] != null && snow.v[i] <= alt;
+    s += `<rect x="${i * CH.step + 1}" y="${prY + prH - hh}" width="${CH.bar}" height="${hh}" rx="1" fill="${sn ? ISO_COL.snowfall : ISO_COL.rain}"/>`; }
+  s += `<rect id="isoSel" x="-20" y="${top - 2}" width="${CH.step}" height="${plot + 4}" fill="none" stroke="#e8eef5" stroke-width="1.5" rx="2"/>`;
+  for(let i = 0; i < H; i++) s += `<rect data-i="${i}" x="${i*CH.step}" y="0" width="${CH.step}" height="${Ht}" fill="transparent"/>`;
+  document.getElementById("isoScroll").innerHTML = `<svg id="isoSvg" width="${W}" height="${Ht}" role="img" aria-label="Iso 0 degré et limite pluie-neige heure par heure">${s}</svg>`;
+  let ax = ""; for(let v = t0; v <= vmax + 1e-9; v += st) ax += `<text x="36" y="${y(v) + 4}" fill="#8597ab" font-size="10" text-anchor="end">${v}</text>`;
+  ax += `<text x="36" y="${top - 10}" fill="#8597ab" font-size="9" text-anchor="end">m</text><text x="36" y="${prY + prH - 6}" fill="#8597ab" font-size="8" text-anchor="end">mm</text>`;
+  const axEl = document.getElementById("isoAxis"); axEl.setAttribute("height", Ht); axEl.innerHTML = ax;
+  document.getElementById("isoLegend").innerHTML =
+    `<span><i style="background:${ISO_COL.iso};height:3px;vertical-align:4px"></i>iso 0 °C</span>` +
+    `<span><i style="background:${ISO_COL.snow};height:3px;vertical-align:4px"></i>limite pluie-neige</span>` +
+    (series.length > 1 ? `<span><i style="background:rgba(240,166,75,.3);height:10px;vertical-align:-1px"></i>écart entre modèles</span>` : "") +
+    `<span><i style="background:none;border-top:2px dashed #6da7ec;height:0;border-radius:0;vertical-align:3px"></i>altitude choisie (${alt} m)</span>` +
+    `<span><i style="background:${ISO_COL.snowfall};height:8px;vertical-align:0"></i>précipitations : neige à ${alt} m</span>` +
+    `<span><i style="background:${ISO_COL.rain};height:8px;vertical-align:0"></i>pluie à ${alt} m</span>`;
+  isoData = {iso, snow, pr, alt, n: series.length};
+  const svg = document.getElementById("isoSvg");
+  svg.addEventListener("click", ev => { const i = ev.target.getAttribute("data-i"); if(i != null) showIso(+i); });
+  svg.addEventListener("pointermove", ev => { if(ev.pointerType === "mouse"){ const i = ev.target.getAttribute("data-i"); if(i != null) showIso(+i); } });
+  showIso(0);
+}
+function showIso(i){
+  const d = isoData; if(!d) return;
+  const sel = document.getElementById("isoSel"); if(sel) sel.setAttribute("x", i * CH.step);
+  const m = v => v == null ? "—" : (Math.round(v / 10) * 10).toLocaleString("fr-FR") + "\u00a0m";
+  const rg = o => d.n > 1 && o.lo[i] != null && o.hi[i] - o.lo[i] >= 50 ? ` <span class="muted">(${m(o.lo[i])} à ${m(o.hi[i])})</span>` : "";
+  const p = d.pr.v[i], sn = d.snow.v[i] != null && d.snow.v[i] <= d.alt;
+  const what = d.snow.v[i] == null ? "" : sn ? `<b style="color:${ISO_COL.snowfall}">neige</b> à ${d.alt} m` : `<b style="color:${ISO_COL.rain}">pluie</b> à ${d.alt} m`;
+  document.getElementById("isoInfo").innerHTML = `<b>${cap(whenTxt(axis[i]))}</b> — iso 0 °C : <b>${m(d.iso.v[i])}</b>${rg(d.iso)} · limite pluie-neige : <b>${m(d.snow.v[i])}</b>${rg(d.snow)}<br>` +
+    (p != null && p >= 0.05 ? `précipitations ${num(p)}\u00a0mm/h : ${what}` : `pas de précipitations${what ? " · s'il précipitait : " + what : ""}`);
+}
+
 /* ---------- Choix des modèles ---------- */
 const NO_MODEL_TXT = "Aucun modèle choisi n'a de prévision. Dans l'onglet Réglages › Modèles utilisés, cochez au moins un modèle disponible.";
 function usedModels(){ return models.filter(m => selModels.has(mkey(m.kind, m.id))); }
@@ -1700,6 +1865,12 @@ const INFO = {
     les heures de fonctionnement à l'altitude choisie.</li><li><b>Le point</b> : sûreté de la prévision (vert sûre, orange moyenne,
     rouge incertaine).</li></ul><p>Touchez un carré : la journée s'affiche en grand en dessous, avec les heures exactes. Touchez ensuite
     une barre pour le détail.</p>`],
+  iso: ["Iso 0 °C et limite pluie-neige", `<ul><li><b>Iso 0 °C</b> (ligne orange) : altitude où l'air passe sous 0 °C. Au-dessus,
+    il gèle.</li><li><b>Limite pluie-neige</b> (ligne bleue) : en dessous, la neige fond et tombe en pluie ; au-dessus, il neige. Elle est en
+    général 200 à 400 m sous l'iso 0.</li><li><b>Barres du bas</b> : précipitations en mm par heure, en blanc s'il neige à l'altitude
+    choisie, en vert s'il pleut.</li></ul><p>Elles sont calculées à partir des températures et de l'humidité en altitude de chaque modèle
+    (AROME, ARPEGE, ECMWF, ICON, GFS, UKMO) : iso 0 là où la température passe à 0 °C, limite pluie-neige là où la température humide
+    passe à +1 °C. Précision d'environ 100 à 300 m. « Moyenne des modèles » montre la moyenne et, en zone claire, l'écart entre modèles.</p>`],
   missing: ["Modèles indisponibles", `<p>Modèles qui n'ont pas répondu à ce calcul : panne du service, quota gratuit dépassé
     (10 000 demandes par jour et par connexion) ou pas de données pour Superbagnères. Les autres modèles sont utilisés normalement.
     Réessayez plus tard.</p>`]
@@ -1854,6 +2025,11 @@ document.getElementById("calDays").addEventListener("click", ev => {
 });
 document.getElementById("moreDays").addEventListener("click", () => { showAllDays = !showAllDays; renderDays(); });
 document.getElementById("moreWins").addEventListener("click", () => { showAllWins = !showAllWins; renderStarts(); });
+document.getElementById("secIso").addEventListener("click", ev => {
+  const b = ev.target.closest("button[data-iso]"); if(!b) return;
+  isoSel = b.dataset.iso; saveJSON(STORE_ISO, isoSel);
+  if(results) renderIso();
+});
 document.getElementById("secSpag").addEventListener("click", ev => {
   const bm = ev.target.closest("button[data-spag-model]"), bv = ev.target.closest("button[data-spag-var]");
   if(!bm && !bv) return;

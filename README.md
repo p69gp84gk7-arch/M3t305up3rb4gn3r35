@@ -134,8 +134,13 @@ Onglet **Simulateur** (fonctionne sans calcul ni connexion) :
   la variation de température prévues pour l'heure en cours (après « Calculer »).
 - **Profil de la montagne** : 650 m (vallée de Luchon), 1450 m (bas de station), 1800 m (plateau, référence) et
   2100 m (haut de station), avec l'air, l'hygrométrie et la température humide à chaque altitude.
-  - **Variation de la température avec l'altitude** (gradient) : curseur de −1 à +1,5 °C / 100 m et valeurs toutes prêtes :
-    standard −0,65 ; air sec −1 ; air humide −0,5 ; isotherme 0 ; **inversion** +0,5 (air froid au fond de la vallée).
+  - Les valeurs (température humide et air) sont écrites sur le schéma, à côté de chaque altitude, et dans la liste.
+  - **Variation de la température avec l'altitude** (gradient) : **calculée automatiquement** selon la température et
+    l'hygrométrie, sans réglage : moyenne pondérée par l'hygrométrie entre le gradient adiabatique humide (air saturé,
+    calculé : environ −0,5 °C/100 m à +10 °C, −0,6 à 0 °C, −0,8 à −15 °C) et le gradient adiabatique sec (−0,98 °C/100 m).
+    Exemples : 0 °C et 60 % → −0,76 ; −10 °C et 80 % → −0,78 ; +5 °C et 100 % → −0,54. Le bouton « Utiliser les prévisions
+    actuelles » reprend à la place la variation prévue par les modèles (qui peut montrer une **inversion**), jusqu'au
+    prochain réglage des curseurs.
   - **Humidité aux autres altitudes** : « même quantité d'eau dans l'air » (conseillé : rapport de mélange constant,
     l'hygrométrie suit la température et la pression, plafonnée à 100 % = saturé) ou « même hygrométrie partout ».
   - Le gradient prévu est calculé par régression linéaire des températures des niveaux de pression situés entre

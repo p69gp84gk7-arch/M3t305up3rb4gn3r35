@@ -157,7 +157,7 @@ footer a{color:var(--ink2)}
 .chip-w > .info{position:absolute;right:8px;top:50%;margin:-12px 0 0}
 /* Onglets */
 body{padding-bottom:calc(76px + env(safe-area-inset-bottom))}
-.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:60;display:grid;grid-template-columns:repeat(5,1fr);
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:60;display:grid;grid-template-columns:repeat(6,1fr);
   background:rgba(11,18,26,.96);border-top:1px solid var(--line);padding:4px 4px calc(4px + env(safe-area-inset-bottom));
   -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 .tabbar button{min-height:58px;border:0;background:none;color:var(--muted);font-size:.78rem;font-weight:600;border-radius:12px;
@@ -196,7 +196,9 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
 .links a small{color:var(--muted);font-size:.76rem;margin-top:3px}
 .links a:active{background:#22344a}
 /* Calendrier 15 jours */
-.tabbar button{font-size:.72rem}
+.tabbar button{font-size:.72rem;min-width:0;padding:0 1px;overflow:hidden}
+@media (max-width:440px){.tabbar{padding-left:2px;padding-right:2px}.tabbar button{font-size:.64rem;letter-spacing:-.01em}}
+@media (max-width:360px){.tabbar button{font-size:.56rem;letter-spacing:-.02em}.tabbar button svg{width:22px;height:22px}}
 .ct-row{display:grid;grid-template-columns:118px 1fr 48px;align-items:center;gap:8px;margin:7px 0}
 .ct-row .n{font-size:.85rem;line-height:1.15}
 .ct-row .n b{display:block;font-size:.95rem}
@@ -311,6 +313,25 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
   .cal-r .t{height:15px}
   .cal-r .a,.cal-r .h{font-size:.82rem}
 }
+/* Simulateur de température humide */
+.simu-top{text-align:center}
+.simu-top .lab{color:var(--ink2);font-size:1rem}
+.simu-top .big{font-size:3.2rem;font-weight:900;line-height:1.05;margin:4px 0 2px;font-variant-numeric:tabular-nums}
+.simu-top #simLvl .lvl{font-size:.9rem;padding:2px 12px}
+.simu-top #simNeed{margin-top:8px}
+.sl{margin:10px 0 14px}
+.sl-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-size:.95rem}
+.sl-h b{font-size:1.15rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.sl-r{display:grid;grid-template-columns:44px 1fr 44px;gap:8px;align-items:center;margin-top:4px}
+.sl-r button{height:44px;border-radius:10px;border:1px solid var(--line);background:var(--card2);font-size:1.3rem}
+.sl-r input[type=range]{width:100%;height:40px;accent-color:var(--accent);margin:0}
+.sl-s{display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted);padding:0 52px}
+.simu-prof svg{display:block;width:100%;max-width:440px;height:auto;margin:0 auto}
+.sim-grad{margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--card2);font-size:.92rem}
+.sim-grad b{font-size:1.05rem}
+.sim-grad .link{margin-top:6px;display:inline-block}
+#simExplain{margin-top:10px;line-height:1.5}
+@media (min-width:1100px){.simu-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:0 18px;align-items:start}}
 .hidden{display:none!important}
 </style>
 </head>
@@ -489,6 +510,43 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
     </div>
   </div>
 
+  <div class="tab hidden" id="tab-simu" role="tabpanel" aria-labelledby="tb-simu">
+    <section class="simu-top" aria-live="polite">
+      <div class="lab">Température humide à <b>1800 m</b> <button type="button" class="info" data-info="simu" aria-label="Explication" aria-expanded="false">i</button></div>
+      <div class="big" id="simTw">—</div>
+      <div id="simLvl"></div>
+      <div class="small ink2" id="simNeed"></div>
+    </section>
+
+    <div class="simu-grid">
+    <section>
+      <h2>Réglages à 1800 m</h2>
+      <div class="sl">
+        <div class="sl-h"><label for="simT">Température de l'air (sèche)</label><b id="simTv"></b></div>
+        <div class="sl-r"><button type="button" data-sim="T" data-d="-0.5" aria-label="Baisser">−</button>
+          <input type="range" id="simT" min="-30" max="30" step="0.5"><button type="button" data-sim="T" data-d="0.5" aria-label="Monter">+</button></div>
+        <div class="sl-s"><span>−30 °C</span><span>0</span><span>+30 °C</span></div>
+      </div>
+      <div class="sl">
+        <div class="sl-h"><label for="simRH">Hygrométrie (humidité relative)</label><b id="simRHv"></b></div>
+        <div class="sl-r"><button type="button" data-sim="RH" data-d="-1" aria-label="Baisser">−</button>
+          <input type="range" id="simRH" min="0" max="100" step="1"><button type="button" data-sim="RH" data-d="1" aria-label="Monter">+</button></div>
+        <div class="sl-s"><span>0 %</span><span>50 %</span><span>100 %</span></div>
+      </div>
+      <button type="button" class="more" id="simFromFc" style="margin-top:4px">Utiliser les prévisions actuelles à 1800 m</button>
+      <div class="small muted" id="simFcNote" style="margin-top:6px"></div>
+    </section>
+
+    <section>
+      <h2>Profil de la montagne <button type="button" class="info" data-info="simuProfil" aria-label="Explication" aria-expanded="false">i</button></h2>
+      <div class="simu-prof" id="simSvg"></div>
+      <div class="sim-grad" id="simGrad"></div>
+      <div class="seg-ctl" id="simMode" aria-label="Humidité aux autres altitudes"></div>
+      <div class="small muted" id="simExplain"></div>
+    </section>
+    </div>
+  </div>
+
   <div class="tab hidden" id="tab-reglages" role="tabpanel" aria-labelledby="tb-reglages">
     <section>
       <details id="settingsBox" open>
@@ -589,6 +647,7 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
   <button type="button" role="tab" id="tb-cal" data-tab="cal" aria-controls="tab-cal"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M7 14h6M7 17h10"/></svg>Calendrier</button>
   <button type="button" role="tab" id="tb-graphs" data-tab="graphs" aria-controls="tab-graphs"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-5 3 3 5-7"/></svg>Graphiques</button>
   <button type="button" role="tab" id="tb-tables" data-tab="tables" aria-controls="tab-tables"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16M15 4v16"/></svg>Tableaux</button>
+  <button type="button" role="tab" id="tb-simu" data-tab="simu" aria-controls="tab-simu"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13.5V5a2 2 0 1 1 4 0v8.5a4 4 0 1 1-4 0z"/><path d="M12 9v6"/><path d="M17.5 4.5h3M17.5 8h3"/></svg>Simulateur</button>
   <button type="button" role="tab" id="tb-reglages" data-tab="reglages" aria-controls="tab-reglages"><svg aria-hidden="true" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>Réglages</button>
 </nav>
 
@@ -819,7 +878,7 @@ function crossUp(prof, thr){
 function parseIso(json, meta){
   const h = json.hourly;
   if(!h || !Array.isArray(h.time)) throw new Error("pas de données horaires");
-  const n = h.time.length, iso0 = new Array(n).fill(null), snow = new Array(n).fill(null);
+  const n = h.time.length, iso0 = new Array(n).fill(null), snow = new Array(n).fill(null), grad = new Array(n).fill(null);
   for(let j = 0; j < n; j++){
     const prof = [], profw = [];
     ISO_LEVELS.forEach(l => {
@@ -829,8 +888,15 @@ function parseIso(json, meta){
     });
     prof.sort((a, b) => a.z - b.z); profw.sort((a, b) => a.z - b.z);
     iso0[j] = crossUp(prof, 0); snow[j] = crossUp(profw, SNOW_TW);
+    // gradient vertical entre environ 500 et 2700 m (régression linéaire), en °C par 100 m
+    const pts = prof.filter(p => p.z >= 300 && p.z <= 2800);
+    if(pts.length >= 2){
+      const mz = mean(pts.map(p => p.z)), mt = mean(pts.map(p => p.v));
+      const den = pts.reduce((a, p) => a + (p.z - mz) ** 2, 0);
+      if(den > 0) grad[j] = pts.reduce((a, p) => a + (p.z - mz) * (p.v - mt), 0) / den * 100;
+    }
   }
-  return Object.assign({}, meta, {kind:"iso", time:h.time, iso0, snow, pr: h.precipitation || []});
+  return Object.assign({}, meta, {kind:"iso", time:h.time, iso0, snow, grad, pr: h.precipitation || []});
 }
 let isoModels = [];   // modèles disponibles pour l'iso 0
 
@@ -1248,6 +1314,7 @@ function render(){
   document.querySelectorAll(".res").forEach(el => el.classList.remove("hidden"));
   document.querySelectorAll(".empty").forEach(el => el.classList.add("hidden"));
   renderSimple();
+  if(curTab === "simu") renderSimu();
   renderBasis(); renderDays(); renderStarts(); renderChart(); renderHum(); renderSpaghetti(); renderIso(); renderCalendar(); renderAltTable(); renderHumTable(); renderModelTable(); renderMissing();
 }
 
@@ -1307,7 +1374,7 @@ function setMode(simple){
   document.body.classList.toggle("simple", simple);
   document.getElementById("simple").classList.toggle("hidden", !simple);
   // l'altitude est masquée seulement dans l'onglet Réglages du mode complet
-  document.getElementById("altBox").classList.toggle("hidden", !simple && curTab === "reglages");
+  document.getElementById("altBox").classList.toggle("hidden", !simple && NO_ALT_TABS.includes(curTab));
   const b = document.getElementById("btnMode");
   b.setAttribute("aria-pressed", simple); b.textContent = simple ? "Mode complet" : "Mode simple";
   saveJSON(STORE_MODE, simple ? "simple" : "complet");
@@ -1692,6 +1759,100 @@ function showSpag(i){
     (d.main && d.main[i] != null ? ` · run principal ${f(d.main[i])}` : "");
 }
 
+/* ---------- Simulateur de température humide ---------- */
+const STORE_SIMU = "neigeSB.simulateur", SIM_REF = 1800;
+const SIM_ALTS = [
+  {alt:2100, name:"haut de station"},
+  {alt:1800, name:"plateau · référence"},
+  {alt:1450, name:"bas de station"},
+  {alt:650,  name:"vallée (Luchon)"}
+];
+// Gradient automatique (°C / 100 m) selon la température et l'hygrométrie :
+// air saturé → gradient adiabatique humide (calculé, ≈ −0,6 vers 0 °C, plus fort par grand froid) ;
+// air sec → vers le gradient adiabatique sec (−0,98) ; entre les deux, moyenne pondérée par l'hygrométrie.
+const G_DRY = -0.98;
+function moistLapse(T, P){
+  const g = 9.81, Lv = 2.501e6, Rd = 287, cp = 1004, eps = 0.622, Tk = T + 273.15, e = es(T), rs = eps * e / (P - e);
+  return -100 * g * (1 + Lv * rs / (Rd * Tk)) / (cp + Lv * Lv * rs * eps / (Rd * Tk * Tk));
+}
+function autoGradient(T, RH, P){ const w = Math.min(Math.max(RH, 0), 100) / 100; return (1 - w) * G_DRY + w * moistLapse(T, P); }
+// src : "auto" = calculé selon température et hygrométrie ; "prevu" = repris des prévisions (peut être une inversion)
+const sim = {T:0, RH:60, G:-0.65, src:"auto", Gfc:null, mode:"eau"};   // mode : "eau" = même quantité d'eau dans l'air, "rh" = même hygrométrie partout
+(function(){ const v = loadJSON(STORE_SIMU); if(v && typeof v === "object"){
+  if(isFinite(v.T)) sim.T = +v.T; if(isFinite(v.RH)) sim.RH = +v.RH; if(v.src === "prevu" && isFinite(v.Gfc)){ sim.src = "prevu"; sim.Gfc = +v.Gfc; } if(v.mode === "rh" || v.mode === "eau") sim.mode = v.mode; } })();
+function simClamp(){ sim.T = Math.round(Math.min(30, Math.max(-30, sim.T)) * 2) / 2; sim.RH = Math.round(Math.min(100, Math.max(0, sim.RH)));
+  sim.G = sim.src === "prevu" && sim.Gfc != null ? sim.Gfc : autoGradient(sim.T, sim.RH, pressureAt(SIM_REF)); }
+function gradTxt(g){ return (g > 0 ? "+" : "") + num(g, 2) + "\u00a0°C / 100\u00a0m"; }
+// conditions à une altitude, à partir des réglages à 1800 m
+function simAt(alt){
+  const P0 = pressureAt(SIM_REF), P = pressureAt(alt), T = sim.T + sim.G * (alt - SIM_REF) / 100;
+  let rh = sim.RH, sat = false;
+  if(sim.mode === "eau"){
+    // même quantité de vapeur d'eau (rapport de mélange constant) : l'hygrométrie change avec la température et la pression
+    const e0 = sim.RH / 100 * es(sim.T), r = 0.622 * e0 / (P0 - e0), e = r * P / (0.622 + r);
+    rh = e / es(T) * 100; if(rh > 100){ rh = 100; sat = true; }
+  }
+  return {alt, T, rh, sat, tw: wetBulb(T, Math.max(rh, 0.5), P)};
+}
+// température de l'air maximale pour atteindre le seuil de température humide, à cette hygrométrie
+function airNeeded(rh, thr, P){
+  let lo = -40, hi = 40;
+  for(let k = 0; k < 50; k++){ const m = (lo + hi) / 2; if(wetBulb(m, Math.max(rh, 0.5), P) > thr) hi = m; else lo = m; }
+  return (lo + hi) / 2;
+}
+function twColor(tw){ const l = level(tw); return l.cls === "lvl-exc" ? "var(--excellent)" : l.cls === "lvl-prod" ? "var(--good)" : l.cls === "lvl-limit" ? "var(--warn)" : "var(--bad)"; }
+function simSVG(){
+  // montagne de profil, schéma (pas à l'échelle), avec les valeurs écrites à côté de chaque altitude
+  const W = 340, H = 4 * 80 + 8, r = k => 18 + (k + 0.5) * 80, xs = [104, 78, 52, 20];
+  let s = `<polygon points="0,${H} 0,${r(3) + 26} 12,${r(3) + 4} 24,${r(3) - 14} 40,${r(2) + 22} 48,${r(2)} 62,${r(1) + 18} 72,${r(1)} 88,${r(0) + 26} 102,${r(0) - 4} 112,${r(0) - 34} 124,${r(0) - 20} 150,${r(0) + 16} 196,${r(1) - 10} 260,${r(2) + 10} ${W},${r(3) - 6} ${W},${H}" fill="#1a2632" stroke="#3a4b5d"/>`;
+  s += `<polygon points="104,${r(0) - 10} 112,${r(0) - 34} 124,${r(0) - 20} 120,${r(0) - 12} 112,${r(0) - 22} 107,${r(0) - 8}" fill="#e8eef5" opacity=".85"/>`;
+  SIM_ALTS.forEach((a, k) => { const c = simAt(a.alt), x = xs[k], y = r(k), tx = x + (k === 0 ? 24 : 16), col = twColor(c.tw), lv = level(c.tw);
+    if(a.alt === SIM_REF) s += `<rect x="${tx - 6}" y="${y - 30}" width="${W - tx + 4}" height="60" rx="8" fill="#14273b" stroke="#2a4a6b"/>`;
+    s += `<circle cx="${x}" cy="${y}" r="${a.alt === SIM_REF ? 8.5 : 7}" fill="${col}" stroke="${a.alt === SIM_REF ? "#e8eef5" : "#0b121a"}" stroke-width="2"/>`;
+    s += `<text x="${tx}" y="${y - 13}" font-size="12.5"><tspan fill="#e8eef5" font-weight="800">${a.alt} m</tspan><tspan fill="#8597ab"> · ${a.name}</tspan></text>`;
+    s += `<text x="${tx}" y="${y + 6}"><tspan fill="${col}" font-size="19" font-weight="900">${temp(c.tw)}</tspan><tspan fill="${col}" font-size="11.5" font-weight="700"> humide · ${lv.txt}</tspan></text>`;
+    s += `<text x="${tx}" y="${y + 22}" fill="#b3c1d0" font-size="11.5">air ${temp(c.T)} · 💧 ${rhTxt(c.rh)}${c.sat ? " · saturé (nuage)" : ""}</text>`; });
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Montagne de profil : 2100, 1800, 1450 et 650 m, avec leurs températures">${s}</svg>`;
+}
+function renderSimu(){
+  simClamp();
+  const ref = simAt(SIM_REF), l = level(ref.tw), thr = settings.tw;
+  document.getElementById("simT").value = sim.T; document.getElementById("simRH").value = sim.RH;
+  document.getElementById("simTv").textContent = temp(sim.T); document.getElementById("simRHv").textContent = rhTxt(sim.RH);
+  const big = document.getElementById("simTw"); big.textContent = temp(ref.tw); big.style.color = twColor(ref.tw);
+  const prod = ref.tw <= thr;
+  document.getElementById("simLvl").innerHTML = `<span class="lvl ${l.cls}">${l.txt}</span> <span class="small ink2">${prod ? "production possible (si le vent le permet)" : "pas assez froid pour produire"}</span>`;
+  const need = airNeeded(sim.RH, thr, pressureAt(SIM_REF));
+  document.getElementById("simNeed").innerHTML = `Écart air → humide : ${num(sim.T - ref.tw)}\u00a0°C. Avec ${rhTxt(sim.RH)} d'humidité, il faut un air à
+    <b>${temp(need)}</b> ou moins pour atteindre le seuil de ${temp(thr).replace("+", "")} humide.`;
+  document.getElementById("simSvg").innerHTML = simSVG();
+  document.getElementById("simGrad").innerHTML = `Variation de la température avec l'altitude : <b>${gradTxt(sim.G)}</b><br>` +
+    (sim.src === "prevu"
+      ? `<span class="small ink2">prévue par les modèles météo pour l'heure en cours.</span> <button type="button" class="link" id="simAuto">Revenir au calcul automatique</button>`
+      : `<span class="small ink2">calculée automatiquement selon la température et l'hygrométrie (air humide : environ −0,5 à −0,8 ; air sec : jusqu'à −0,98).</span>`);
+  document.getElementById("simMode").innerHTML = [["eau", "Même quantité d'eau dans l'air (conseillé)"], ["rh", "Même hygrométrie partout"]]
+    .map(([k, t]) => `<button type="button" data-simm="${k}" aria-pressed="${sim.mode === k}">${t}</button>`).join("");
+  const d = sim.G * (650 - SIM_REF) / 100;
+  document.getElementById("simExplain").innerHTML = sim.G < -0.05
+    ? `Il fait ${num(Math.abs(d))}\u00a0°C de plus à 650\u00a0m qu'à 1800\u00a0m et ${num(Math.abs(sim.G * 3))}\u00a0°C de moins à 2100\u00a0m.` +
+      (sim.src === "auto" ? ` En cas d'inversion (air froid bloqué dans la vallée, par temps calme en hiver), la vallée peut au contraire être plus froide : utilisez alors les prévisions actuelles.` : "")
+    : sim.G > 0.05 ? `<b>Inversion de température</b> : il fait plus froid en bas qu'en haut (${num(Math.abs(d))}\u00a0°C de moins à 650\u00a0m qu'à 1800\u00a0m). Cela arrive en hiver par temps calme et anticyclonique, quand l'air froid s'accumule dans la vallée.`
+    : `Température identique à toutes les altitudes (isotherme).`;
+  const fc = simForecast();
+  const b = document.getElementById("simFromFc"); b.disabled = !fc;
+  document.getElementById("simFcNote").textContent = fc ? `Prévision pour ${whenTxt(axis[0])} : air ${temp(fc.T)}, humidité ${rhTxt(fc.RH)}` +
+    (fc.G != null ? `, variation prévue ${gradTxt(fc.G)} (moyenne de ${fc.n} modèle${fc.n > 1 ? "s" : ""}).` : ".") : "Appuyez sur « Calculer » pour pouvoir reprendre les prévisions.";
+  saveJSON(STORE_SIMU, sim);
+}
+// prévisions actuelles à 1800 m (et gradient prévu par les modèles qui donnent les températures en altitude)
+function simForecast(){
+  if(!results) return null;
+  const i = ALTS.findIndex(a => a.alt === SIM_REF), R = results[i];
+  if(!R || R.T[0] == null || R.RH[0] == null) return null;
+  const gs = isoModels.map(m => { const j = m.time.indexOf(axis[0]); return j >= 0 ? m.grad[j] : null; }).filter(g => g != null);
+  return {T:R.T[0], RH:R.RH[0], G: gs.length ? mean(gs) : null, n: gs.length};
+}
+
 /* ---------- Graphique de l'humidité de l'air ---------- */
 const HUM_COL = "#5fd3c0";
 let humData = null;
@@ -1998,6 +2159,22 @@ const INFO = {
     choisis). Plus la case est claire, plus l'air est sec, donc favorable à la production :</p><ul><li><b>très sec</b> : 50 % ou moins ;</li>
     <li><b>sec</b> : 50 à 70 % ;</li><li><b>humide</b> : 70 à 85 % ;</li><li><b>très humide</b> : plus de 85 %.</li></ul><p>Pour aujourd'hui,
     seules les heures restantes comptent.</p>`],
+  simu: ["Simulateur de température humide", `<p>Réglez la température de l'air (dite « sèche ») et l'hygrométrie à 1800 m avec
+    les curseurs (ou − / +) : la température humide s'affiche en haut, en couleur selon le niveau (limite, production, excellent),
+    par rapport au seuil de l'onglet Réglages.</p><p>La ligne du dessous indique la température de l'air à ne pas dépasser pour
+    atteindre le seuil avec cette hygrométrie. « Utiliser les prévisions actuelles » reprend les valeurs prévues pour l'heure en
+    cours (après « Calculer »).</p><p>Le vent n'est pas pris en compte ici.</p>`],
+  simuProfil: ["Profil de la montagne", `<p>À partir des réglages à 1800 m, le simulateur estime l'air, l'hygrométrie et la
+    température humide à 650 m (vallée de Luchon), 1450 m, 1800 m et 2100 m. Les valeurs sont écrites sur le schéma et dans la liste.</p>
+    <ul><li><b>Variation de la température avec l'altitude</b> : elle est <b>calculée automatiquement</b> selon la température et
+    l'hygrométrie. Dans un air saturé (100 %), la température baisse d'environ 0,5 à 0,8 °C par 100 m (moins quand il fait doux, plus
+    par grand froid) ; dans un air très sec, jusqu'à 0,98 °C par 100 m ; entre les deux, la valeur suit l'hygrométrie.
+    Exemples : 0 °C et 60 % → −0,76 ; −10 °C et 80 % → −0,78 ; +5 °C et 100 % → −0,54 °C par 100 m.</li>
+    <li><b>Inversion</b> : par temps calme en hiver, l'air froid peut rester au fond de la vallée et il fait alors plus froid en bas
+    qu'en haut. Le calcul automatique ne peut pas le deviner : « Utiliser les prévisions actuelles » reprend la variation prévue par
+    les modèles météo, inversion comprise.</li>
+    <li><b>Même quantité d'eau dans l'air</b> (conseillé) : l'hygrométrie monte quand l'air se refroidit et baisse quand il se
+    réchauffe ; à 100 %, l'air est saturé (nuage ou brouillard). <b>Même hygrométrie partout</b> : plus simple, moins réaliste.</li></ul>`],
   missing: ["Modèles indisponibles", `<p>Modèles qui n'ont pas répondu à ce calcul : panne du service, quota gratuit dépassé
     (10 000 demandes par jour et par connexion) ou pas de données pour Superbagnères. Les autres modèles sont utilisés normalement.
     Réessayez plus tard.</p>`]
@@ -2047,7 +2224,8 @@ addEventListener("resize", closeBubble);
 
 /* ---------- Onglets ---------- */
 const STORE_TAB = "neigeSB.onglet";
-const TABS = ["resume", "cal", "graphs", "tables", "reglages"];
+const TABS = ["resume", "cal", "graphs", "tables", "simu", "reglages"];
+const NO_ALT_TABS = ["simu", "reglages"];   // onglets où le choix d'altitude ne sert pas
 let curTab = "resume";
 function showTab(t, scrollTop){
   if(!TABS.includes(t)) t = "resume";
@@ -2058,7 +2236,8 @@ function showTab(t, scrollTop){
     const b = document.getElementById("tb-" + x);
     b.setAttribute("aria-selected", x === t); b.tabIndex = x === t ? 0 : -1;
   });
-  document.getElementById("altBox").classList.toggle("hidden", t === "reglages");   // l'altitude ne sert pas aux réglages
+  document.getElementById("altBox").classList.toggle("hidden", NO_ALT_TABS.includes(t));   // l'altitude ne sert pas ici
+  if(t === "simu") renderSimu();
   if(t === "graphs") document.getElementById("spagScroll").scrollLeft = spagScrollX;
   if(scrollTop) scrollTo({top: 0});
 }
@@ -2152,6 +2331,15 @@ document.getElementById("calDays").addEventListener("click", ev => {
 });
 document.getElementById("moreDays").addEventListener("click", () => { showAllDays = !showAllDays; renderDays(); });
 document.getElementById("moreWins").addEventListener("click", () => { showAllWins = !showAllWins; renderStarts(); });
+["simT", "simRH"].forEach(id => document.getElementById(id).addEventListener("input", e => {
+  sim[{simT:"T", simRH:"RH"}[id]] = parseFloat(e.target.value); sim.src = "auto"; renderSimu(); }));
+document.getElementById("tab-simu").addEventListener("click", ev => {
+  const st = ev.target.closest("button[data-sim]"), md = ev.target.closest("button[data-simm]");
+  if(st){ sim[st.dataset.sim] += parseFloat(st.dataset.d); sim.src = "auto"; renderSimu(); }
+  else if(ev.target.closest("#simAuto")){ sim.src = "auto"; renderSimu(); }
+  else if(md){ sim.mode = md.dataset.simm; renderSimu(); }
+  else if(ev.target.closest("#simFromFc")){ const fc = simForecast(); if(fc){ sim.T = fc.T; sim.RH = fc.RH; if(fc.G != null){ sim.src = "prevu"; sim.Gfc = fc.G; } else sim.src = "auto"; renderSimu(); } }
+});
 document.getElementById("secIso").addEventListener("click", ev => {
   const b = ev.target.closest("button[data-iso]"); if(!b) return;
   isoSel = b.dataset.iso; saveJSON(STORE_ISO, isoSel);

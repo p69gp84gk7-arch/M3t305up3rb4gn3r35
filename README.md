@@ -66,7 +66,7 @@ Avec une souris, les boutons s'éclairent au survol.
 
 ## Ce que montre la page
 
-La page est rangée en **5 onglets**, avec une barre en bas de l'écran. Le bouton **Calculer** et le choix de
+La page est rangée en **6 onglets**, avec une barre en bas de l'écran. Le bouton **Calculer** et le choix de
 l'altitude restent en haut. L'onglet ouvert est gardé dans le téléphone.
 
 | Onglet | Contenu |
@@ -75,6 +75,7 @@ l'altitude restent en haut. L'onglet ouvert est gardé dans le téléphone.
 | **Calendrier** | Calendrier à 15 jours façon Apple, temps de fonctionnement estimé (une barre par altitude) |
 | **Graphiques** | Heure par heure, Diagramme des scénarios |
 | **Tableaux** | Toutes les altitudes, Par modèle, Modèles indisponibles (avec choix des modèles affichés) |
+| **Simulateur** | Simulateur de température humide, profil de la montagne (650 à 2100 m) |
 | **Réglages** | Réglages des seuils, Modèles utilisés, Comment c'est calculé |
 
 
@@ -121,6 +122,26 @@ Dans l'onglet **Tableaux**, au-dessus du tableau « Par modèle », le petit blo
 choisir les lignes du tableau : un bouton par modèle disponible, et des choix tout prêts (Tous, Utilisés dans le
 calcul, Ensembles, Déterministes, Météo-France). Le choix est gardé dans le téléphone. Il ne change pas le
 calcul (qui se règle dans Réglages › Modèles utilisés).
+
+## Simulateur de température humide
+
+Onglet **Simulateur** (fonctionne sans calcul ni connexion) :
+
+- **En haut**, la température humide à **1800 m** (altitude de référence), en grand, colorée selon le niveau, et la
+  température de l'air à ne pas dépasser pour atteindre le seuil avec l'hygrométrie choisie.
+- **Curseurs** : température de l'air (sèche) de **−30 à +30 °C** (pas de 0,5 °C) et hygrométrie de **0 à 100 %**
+  (pas de 1 %), avec boutons − / +. Le bouton « Utiliser les prévisions actuelles à 1800 m » reprend l'air, l'humidité et
+  la variation de température prévues pour l'heure en cours (après « Calculer »).
+- **Profil de la montagne** : 650 m (vallée de Luchon), 1450 m (bas de station), 1800 m (plateau, référence) et
+  2100 m (haut de station), avec l'air, l'hygrométrie et la température humide à chaque altitude.
+  - **Variation de la température avec l'altitude** (gradient) : curseur de −1 à +1,5 °C / 100 m et valeurs toutes prêtes :
+    standard −0,65 ; air sec −1 ; air humide −0,5 ; isotherme 0 ; **inversion** +0,5 (air froid au fond de la vallée).
+  - **Humidité aux autres altitudes** : « même quantité d'eau dans l'air » (conseillé : rapport de mélange constant,
+    l'hygrométrie suit la température et la pression, plafonnée à 100 % = saturé) ou « même hygrométrie partout ».
+  - Le gradient prévu est calculé par régression linéaire des températures des niveaux de pression situés entre
+    environ 300 et 2800 m (modèles AROME, ARPEGE, ECMWF, ICON, GFS, UKMO), moyenne des modèles.
+
+Les réglages du simulateur sont gardés dans le téléphone.
 
 ## Humidité de l'air (hygrométrie)
 

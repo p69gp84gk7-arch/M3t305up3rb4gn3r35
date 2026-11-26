@@ -122,6 +122,25 @@ choisir les lignes du tableau : un bouton par modèle disponible, et des choix t
 calcul, Ensembles, Déterministes, Météo-France). Le choix est gardé dans le téléphone. Il ne change pas le
 calcul (qui se règle dans Réglages › Modèles utilisés).
 
+## Humidité de l'air (hygrométrie)
+
+Un air sec est favorable à la neige de culture : la température humide est plus basse que celle de l'air.
+À 1800 m, pour obtenir −2,5 °C de température humide, il faut −1,9 °C d'air à 90 % d'humidité, −0,6 °C à 70 %,
+**+0,9 °C à 50 %** et **+2,8 °C à 30 %**. L'humidité relative (déjà téléchargée pour le calcul) est maintenant affichée :
+
+- **Graphiques** : courbe « Humidité de l'air » heure par heure (moyenne des modèles choisis, zone de 8 scénarios
+  sur 10, repère 70 %, humidité moyenne de chaque jour) ; bouton **Humidité** dans le diagramme des scénarios ;
+- **Calendrier** : 💧 humidité moyenne du jour dans chaque carré (altitude choisie) et pour chaque altitude dans le
+  détail du jour ; humidité moyenne pendant la production au clic sur une barre ;
+- **Résumé** : humidité « en ce moment », au démarrage et moyenne de chaque fenêtre, 💧 humidité du jour dans les
+  cartes « Jour par jour » ;
+- **Tableaux** : tableau « Humidité moyenne par jour » (altitudes × jours, très sec ≤ 50 %, sec 50–70 %,
+  humide 70–85 %, très humide > 85 %) ;
+- **Mode simple** : humidité maintenant et humidité moyenne de chaque jour.
+
+L'humidité affichée est la valeur du milieu des scénarios de chaque modèle, puis la moyenne des modèles choisis ;
+l'humidité du jour est la moyenne des heures de la journée (heures restantes pour aujourd'hui).
+
 ## Iso 0 °C et limite pluie-neige
 
 Dans l'onglet **Graphiques**, le graphique **Iso 0 °C et limite pluie-neige** montre heure par heure, sur 16 jours :

@@ -299,6 +299,7 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
   #tab-resume .res > #basis{grid-column:1 / -1}
   #windows{grid-template-columns:1fr}
   #tab-cal .res{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:0 18px;align-items:start}
+  #tab-cal .res > #secCanons{grid-column:1 / -1}
   #tab-reglages{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:0 18px;align-items:start;
     grid-template-rows:auto 1fr;grid-template-areas:"seuils modeles" "calc modeles"}
   #tab-reglages > section:nth-of-type(1){grid-area:seuils}
@@ -433,6 +434,19 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
         <div class="small muted" style="margin-bottom:10px" id="calTotalSub"></div>
         <div id="calTotals"></div>
       </section>
+
+      <section id="secCanons">
+        <h2>Canons : démarrage de l'installation <button type="button" class="info" data-info="canons" aria-label="Explication" aria-expanded="false">i</button></h2>
+        <div class="small muted">Règle : il faut au moins <b>25 canons à −3 °C humide ou moins</b> pour démarrer. Température calculée à
+          l'altitude de chacun des 203 canons, d'après les prévisions. Le jour suit celui choisi dans le calendrier ; touchez une barre pour choisir l'heure.</div>
+        <div id="canDays" class="can-days"></div>
+        <div id="canHours"></div>
+        <div id="canStart" class="can-start"></div>
+        <div id="canMap" class="can-map"></div>
+        <div id="canInfo" class="small ink2"></div>
+        <div class="legend" id="canLegend"></div>
+        <div id="canList" class="small can-list"></div>
+      </section>
     </div>
   </div>
 
@@ -563,21 +577,6 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
     </section>
     </div>
 
-    <section id="secCanons">
-      <h2>Canons : démarrage de l'installation <button type="button" class="info" data-info="canons" aria-label="Explication" aria-expanded="false">i</button></h2>
-      <div class="small muted">Règle : il faut au moins <b>25 canons à −3 °C humide ou moins</b> pour démarrer. Température calculée à
-        l'altitude de chacun des 203 canons, d'après les prévisions : choisissez le jour, puis l'heure.</div>
-      <div id="canWait" class="can-start hidden"><div class="t">Prévisions nécessaires</div>
-        <div class="d">Les canons sont calculés d'après les prévisions météo. Appuyez sur « Calculer » pour choisir le jour.</div>
-        <button type="button" class="more" id="canCalc" style="margin-top:8px">Calculer maintenant</button></div>
-      <div id="canDays" class="can-days"></div>
-      <div id="canHours"></div>
-      <div id="canStart" class="can-start"></div>
-      <div id="canMap" class="can-map"></div>
-      <div id="canInfo" class="small ink2"></div>
-      <div class="legend" id="canLegend"></div>
-      <div id="canList" class="small can-list"></div>
-    </section>
   </div>
 
   <div class="tab hidden" id="tab-reglages" role="tabpanel" aria-labelledby="tb-reglages">
@@ -1347,8 +1346,8 @@ function render(){
   document.querySelectorAll(".res").forEach(el => el.classList.remove("hidden"));
   document.querySelectorAll(".empty").forEach(el => el.classList.add("hidden"));
   renderSimple();
-  if(curTab === "simu"){ renderSimu(); renderCanons(); }
-  renderBasis(); renderDays(); renderStarts(); renderChart(); renderHum(); renderSpaghetti(); renderIso(); renderCalendar(); renderAltTable(); renderHumTable(); renderModelTable(); renderMissing();
+  if(curTab === "simu") renderSimu();
+  renderBasis(); renderDays(); renderStarts(); renderChart(); renderHum(); renderSpaghetti(); renderIso(); renderCalendar(); renderCanons(); renderAltTable(); renderHumTable(); renderModelTable(); renderMissing();
 }
 
 /* Jour par jour : schéma de la pente avec 3 altitudes */
@@ -2055,7 +2054,7 @@ function fcAt(i){
   const gs = isoModels.map(m => { const j = m.time.indexOf(axis[i]); return j >= 0 ? m.grad[j] : null; }).filter(x => x != null);
   return {T:R.T[i], RH:R.RH[i], W:R.W[i], G: gs.length ? mean(gs) : autoGradient(R.T[i], R.RH[i], pressureAt(SIM_REF)), Gsrc: gs.length ? "prévu" : "automatique"};
 }
-const can = {day:0, hour:null, sel:null};   // jour et heure choisis (prévisions), canon sélectionné sur le plan
+const can = {hour:null, sel:null};   // heure choisie (le jour est celui du calendrier : calSel), canon sélectionné sur le plan
 const CAN_MODE = "eau";   // humidité aux autres altitudes : même quantité d'eau dans l'air
 let canDayCache = null;
 function canDaySummary(){
@@ -2102,15 +2101,11 @@ function canHoursSVG(day){
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Nombre de canons prêts heure par heure">${s}</svg>`;
 }
 function renderCanons(){
-  const fcOk = !!(results && usedModels().length);
-  const ids = ["canDays", "canHours", "canStart", "canMap", "canInfo", "canLegend", "canList"];
-  document.getElementById("canWait").classList.toggle("hidden", fcOk);
-  ids.forEach(id => document.getElementById(id).classList.toggle("hidden", !fcOk));
-  if(!fcOk) return;
+  if(!(results && usedModels().length)) return;
   const sum = canDaySummary();
-  if(can.day >= sum.length) can.day = 0;
-  document.getElementById("canDays").innerHTML = sum.map((x, k) => `<button type="button" data-cand="${k}" aria-pressed="${k === can.day}" class="${x.go.length ? "go" : ""}">${cap(dayLabel(x.d.key))}<small>${x.go.length ? "✔ " + x.go.length + "\u00a0h" : "—"}</small></button>`).join("");
-  const day = sum[can.day];
+  if(calSel >= sum.length) calSel = 0;
+  document.getElementById("canDays").innerHTML = sum.map((x, k) => `<button type="button" data-cand="${k}" aria-pressed="${k === calSel}" class="${x.go.length ? "go" : ""}">${cap(dayLabel(x.d.key))}<small>${x.go.length ? "✔ " + x.go.length + "\u00a0h" : "—"}</small></button>`).join("");
+  const day = sum[calSel];
   if(can.hour == null || !day.d.idx.includes(can.hour)) can.hour = (day.go[0] || day.best || {i: day.d.idx[0]}).i;
   document.getElementById("canHours").innerHTML = canHoursSVG(day);
   const hh = day.hours.find(x => x && x.i === can.hour);
@@ -2520,7 +2515,8 @@ const INFO = {
   canons: ["Canons : démarrage de l'installation", `<p>Règle de démarrage : <b>au moins 25 canons à −3 °C de température humide
     ou moins</b> (et un vent sous le seuil de l'onglet Réglages).</p><ul><li>Le calcul se fait <b>d'après les prévisions</b> (après
     « Calculer ») : air et hygrométrie prévus à 1800 m, variation de température avec l'altitude prévue par les modèles, puis température
-    humide à l'altitude de chacun des 203 canons. Il ne dépend pas des curseurs du simulateur.</li><li><b>Jour par jour</b> : choisissez un jour ; les barres donnent, heure par heure, le nombre de canons prêts (vert : démarrage possible ;
+    humide à l'altitude de chacun des 203 canons. Il ne dépend pas des curseurs du simulateur.</li><li><b>Jour par jour</b> : le jour est celui choisi dans le calendrier
+    (toucher un carré ou un jour ici change les deux) ; les barres donnent, heure par heure, le nombre de canons prêts (vert : démarrage possible ;
     orange : assez de canons mais trop de vent). Touchez une barre pour voir le plan à cette heure. Le nombre sous chaque jour = heures
     où l'on peut démarrer.</li><li><b>Plan</b> : chaque point est un canon (vert prêt, orange limite, gris trop doux). Touchez-le pour son
     numéro, son altitude et sa température humide. La liste donne les numéros des canons prêts.</li></ul><p>Positions : fichier des
@@ -2603,7 +2599,7 @@ function showTab(t, scrollTop){
     b.setAttribute("aria-selected", x === t); b.tabIndex = x === t ? 0 : -1;
   });
   document.getElementById("altBox").classList.toggle("hidden", NO_ALT_TABS.includes(t));   // l'altitude ne sert pas ici
-  if(t === "simu"){ renderSimu(); renderCanons(); }
+  if(t === "simu") renderSimu();
   if(t === "graphs") document.getElementById("spagScroll").scrollLeft = spagScrollX;
   if(scrollTop) scrollTo({top: 0});
 }
@@ -2686,11 +2682,14 @@ document.getElementById("tfBox").addEventListener("click", ev => {
   saveJSON(STORE_TF, tableShow ? [...tableShow] : null);
   if(results) renderModelTable();
 });
-document.getElementById("calGrid").addEventListener("click", ev => {
-  const c = ev.target.closest(".cc[data-d]"); if(!c) return;
-  calSel = +c.dataset.d;
+// choix du jour : le même pour le calendrier et les canons
+function selectCalDay(di){
+  calSel = di; can.hour = null;
   document.querySelectorAll("#calGrid .cc[data-d]").forEach(x => { const on = +x.dataset.d === calSel; x.classList.toggle("sel", on); x.setAttribute("aria-pressed", on); });
-  renderCalDetail();
+  renderCalDetail(); renderCanons();
+}
+document.getElementById("calGrid").addEventListener("click", ev => {
+  const c = ev.target.closest(".cc[data-d]"); if(c) selectCalDay(+c.dataset.d);
 });
 document.getElementById("calDays").addEventListener("click", ev => {
   const r = ev.target.closest(".cal-r"); if(r) showCalInfo(+r.dataset.d, +r.dataset.a);
@@ -2701,8 +2700,7 @@ document.getElementById("moreWins").addEventListener("click", () => { showAllWin
   sim[{simT:"T", simRH:"RH"}[id]] = parseFloat(e.target.value); sim.src = "auto"; renderSimu(); }));
 document.getElementById("secCanons").addEventListener("click", ev => {
   const db = ev.target.closest("button[data-cand]"), hb = ev.target.closest("[data-h]"), pt = ev.target.closest("[data-k]");
-  if(ev.target.closest("#canCalc")){ calculate(); }
-  else if(db){ can.day = +db.dataset.cand; can.hour = null; renderCanons(); }
+  if(db){ selectCalDay(+db.dataset.cand); }
   else if(hb){ can.hour = +hb.dataset.h; renderCanons(); }
   else if(pt){ can.sel = +pt.dataset.k; renderCanons(); }
 });

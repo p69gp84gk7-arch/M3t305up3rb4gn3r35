@@ -158,8 +158,9 @@ humide ou moins** (et un vent sous le seuil de l'onglet Réglages).
   le 25e canon le plus haut est à 1869 m. Seuls les numéros et positions sont dans la page (`CANONS` dans `index.html`).
 - La température humide de chaque canon est calculée à son altitude à partir de l'air et de l'hygrométrie à 1800 m et de la
   variation avec l'altitude (même calcul que le profil de la montagne).
-- **Simulation** : selon les curseurs ; donne aussi l'air maximal à 1800 m pour avoir 25 canons prêts.
-- **Prévisions jour par jour** (après « Calculer ») : sélecteur de jour (15 jours, avec le nombre d'heures où l'on peut
+- Le calcul se fait **uniquement d'après les prévisions** (pas d'après les curseurs du simulateur) ; avant le premier calcul,
+  un bouton « Calculer maintenant » est proposé.
+- **Jour par jour** (après « Calculer ») : sélecteur de jour (15 jours, avec le nombre d'heures où l'on peut
   démarrer), barres heure par heure du nombre de canons prêts (vert : démarrage possible, orange : vent trop fort), heures
   de démarrage possibles ; air, hygrométrie et vent prévus à 1800 m, variation prévue par les modèles en altitude
   (sinon calcul automatique).

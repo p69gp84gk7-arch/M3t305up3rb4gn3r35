@@ -566,8 +566,10 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
     <section id="secCanons">
       <h2>Canons : démarrage de l'installation <button type="button" class="info" data-info="canons" aria-label="Explication" aria-expanded="false">i</button></h2>
       <div class="small muted">Règle : il faut au moins <b>25 canons à −3 °C humide ou moins</b> pour démarrer. Température calculée à
-        l'altitude de chacun des 203 canons.</div>
-      <div class="seg-ctl" id="canSrc" aria-label="Source"></div>
+        l'altitude de chacun des 203 canons, d'après les prévisions : choisissez le jour, puis l'heure.</div>
+      <div id="canWait" class="can-start hidden"><div class="t">Prévisions nécessaires</div>
+        <div class="d">Les canons sont calculés d'après les prévisions météo. Appuyez sur « Calculer » pour choisir le jour.</div>
+        <button type="button" class="more" id="canCalc" style="margin-top:8px">Calculer maintenant</button></div>
       <div id="canDays" class="can-days"></div>
       <div id="canHours"></div>
       <div id="canStart" class="can-start"></div>
@@ -1345,7 +1347,7 @@ function render(){
   document.querySelectorAll(".res").forEach(el => el.classList.remove("hidden"));
   document.querySelectorAll(".empty").forEach(el => el.classList.add("hidden"));
   renderSimple();
-  if(curTab === "simu") renderSimu();
+  if(curTab === "simu"){ renderSimu(); renderCanons(); }
   renderBasis(); renderDays(); renderStarts(); renderChart(); renderHum(); renderSpaghetti(); renderIso(); renderCalendar(); renderAltTable(); renderHumTable(); renderModelTable(); renderMissing();
 }
 
@@ -2046,15 +2048,6 @@ function canonsReady(T0, RH0, G, mode, stop){
   return n;
 }
 function canonsTw(T0, RH0, G, mode){ return CANONS.map(c => condAt(c[3], T0, RH0, G, mode).tw); }
-// air maximal à 1800 m (avec cette hygrométrie) pour avoir 25 canons prêts, gradient automatique ou fixe
-function airForStart(RH0, Gfix, mode){
-  const P0 = pressureAt(SIM_REF), g = T => Gfix != null ? Gfix : autoGradient(T, RH0, P0);
-  const ok = T => canonsReady(T, RH0, g(T), mode, START_N) >= START_N;
-  let lo = -30, hi = 30;
-  if(ok(hi)) return hi; if(!ok(lo)) return null;
-  for(let k = 0; k < 16; k++){ const m = (lo + hi) / 2; if(ok(m)) lo = m; else hi = m; }
-  return lo;
-}
 // prévisions : air, hygrométrie, vent à 1800 m et gradient prévu (moyenne des modèles en altitude, sinon automatique)
 function fcAt(i){
   const R = results[ALTS.findIndex(a => a.alt === SIM_REF)];
@@ -2062,15 +2055,16 @@ function fcAt(i){
   const gs = isoModels.map(m => { const j = m.time.indexOf(axis[i]); return j >= 0 ? m.grad[j] : null; }).filter(x => x != null);
   return {T:R.T[i], RH:R.RH[i], W:R.W[i], G: gs.length ? mean(gs) : autoGradient(R.T[i], R.RH[i], pressureAt(SIM_REF)), Gsrc: gs.length ? "prévu" : "automatique"};
 }
-const can = {src:"sim", day:0, hour:null, sel:null};   // source : "sim" (curseurs) ou "prev" (prévisions)
+const can = {day:0, hour:null, sel:null};   // jour et heure choisis (prévisions), canon sélectionné sur le plan
+const CAN_MODE = "eau";   // humidité aux autres altitudes : même quantité d'eau dans l'air
 let canDayCache = null;
 function canDaySummary(){
   // pour chaque jour : heures où le démarrage est possible (≥ 25 canons prêts et vent sous le seuil)
-  const key = fetchedAt + "|" + settings.wind + "|" + [...selModels].join(",") + "|" + sim.mode;
+  const key = fetchedAt + "|" + settings.wind + "|" + [...selModels].join(",");
   if(canDayCache && canDayCache.key === key) return canDayCache.days;
   const out = days.slice(0, CAL_DAYS).map(d => {
     const hours = d.idx.map(i => { const f = fcAt(i); if(!f) return null;
-      const n = canonsReady(f.T, f.RH, f.G, sim.mode); return {i, n, f, wind: f.W == null || f.W <= settings.wind}; });
+      const n = canonsReady(f.T, f.RH, f.G, CAN_MODE); return {i, n, f, wind: f.W == null || f.W <= settings.wind}; });
     const go = hours.filter(h => h && h.n >= START_N && h.wind);
     return {d, hours, go, best: hours.filter(Boolean).sort((a, b) => b.n - a.n)[0] || null};
   });
@@ -2109,36 +2103,24 @@ function canHoursSVG(day){
 }
 function renderCanons(){
   const fcOk = !!(results && usedModels().length);
-  if(!fcOk && can.src === "prev") can.src = "sim";
-  document.getElementById("canSrc").innerHTML = `<button type="button" data-cans="sim" aria-pressed="${can.src === "sim"}">Simulation (curseurs)</button>` +
-    `<button type="button" data-cans="prev" aria-pressed="${can.src === "prev"}"${fcOk ? "" : " disabled"}>Prévisions jour par jour${fcOk ? "" : " (après Calculer)"}</button>`;
-  let T0, RH0, G, title, sub = "";
-  const dEl = document.getElementById("canDays"), hEl = document.getElementById("canHours");
-  if(can.src === "prev"){
-    const sum = canDaySummary();
-    if(can.day >= sum.length) can.day = 0;
-    dEl.innerHTML = sum.map((x, k) => `<button type="button" data-cand="${k}" aria-pressed="${k === can.day}" class="${x.go.length ? "go" : ""}">${cap(dayLabel(x.d.key))}<small>${x.go.length ? "✔ " + x.go.length + "\u00a0h" : "—"}</small></button>`).join("");
-    const day = sum[can.day];
-    if(can.hour == null || !day.d.idx.includes(can.hour)) can.hour = (day.go[0] || day.best || {i: day.d.idx[0]}).i;
-    hEl.innerHTML = canHoursSVG(day);
-    const hh = day.hours.find(x => x && x.i === can.hour);
-    if(!hh){ document.getElementById("canStart").innerHTML = "Pas de prévision pour cette heure."; return; }
-    T0 = hh.f.T; RH0 = hh.f.RH; G = hh.f.G;
-    title = cap(whenTxt(axis[can.hour]));
-    const goH = hourRanges(day.go.map(x => hourOf(axis[x.i])));
-    sub = `${title} : air ${temp(T0)} · 💧 ${rhTxt(RH0)} · vent ${num(hh.f.W, 0)}\u00a0km/h à 1800 m · variation ${gradTxt(G)} (${hh.f.Gsrc}).<br>` +
-      (day.go.length ? `<b>Ce jour-là, démarrage possible : ${goH}</b> (${day.go.length}\u00a0h).` : `Ce jour-là : pas de démarrage possible` +
-        (day.best ? ` (au mieux ${day.best.n} canons à ${hourOf(axis[day.best.i])}\u00a0h).` : "."));
-    var windOk = hh.wind;
-  } else {
-    dEl.innerHTML = ""; hEl.innerHTML = "";
-    T0 = sim.T; RH0 = sim.RH; G = sim.G; title = "Simulation";
-    var windOk = true;
-    const need = airForStart(RH0, sim.src === "prevu" ? sim.Gfc : null, sim.mode);
-    sub = `Air ${temp(T0)} · 💧 ${rhTxt(RH0)} à 1800 m · variation ${gradTxt(G)}.<br>` + (need == null ? "Même à −30 °C, pas assez de canons à −3 °C."
-      : `Avec ${rhTxt(RH0)} d'humidité, il faut un air à <b>${temp(need)}</b> ou moins à 1800 m pour avoir 25 canons à −3 °C.`);
-  }
-  const tws = canonsTw(T0, RH0, G, sim.mode), ready = tws.map((t, k) => t <= START_TW ? k : -1).filter(k => k >= 0);
+  const ids = ["canDays", "canHours", "canStart", "canMap", "canInfo", "canLegend", "canList"];
+  document.getElementById("canWait").classList.toggle("hidden", fcOk);
+  ids.forEach(id => document.getElementById(id).classList.toggle("hidden", !fcOk));
+  if(!fcOk) return;
+  const sum = canDaySummary();
+  if(can.day >= sum.length) can.day = 0;
+  document.getElementById("canDays").innerHTML = sum.map((x, k) => `<button type="button" data-cand="${k}" aria-pressed="${k === can.day}" class="${x.go.length ? "go" : ""}">${cap(dayLabel(x.d.key))}<small>${x.go.length ? "✔ " + x.go.length + "\u00a0h" : "—"}</small></button>`).join("");
+  const day = sum[can.day];
+  if(can.hour == null || !day.d.idx.includes(can.hour)) can.hour = (day.go[0] || day.best || {i: day.d.idx[0]}).i;
+  document.getElementById("canHours").innerHTML = canHoursSVG(day);
+  const hh = day.hours.find(x => x && x.i === can.hour);
+  if(!hh){ document.getElementById("canStart").innerHTML = "Pas de prévision pour cette heure."; return; }
+  const T0 = hh.f.T, RH0 = hh.f.RH, G = hh.f.G, windOk = hh.wind;
+  const goH = hourRanges(day.go.map(x => hourOf(axis[x.i])));
+  const sub = `${cap(whenTxt(axis[can.hour]))} : air ${temp(T0)} · 💧 ${rhTxt(RH0)} · vent ${num(hh.f.W, 0)}\u00a0km/h à 1800 m · variation ${gradTxt(G)} (${hh.f.Gsrc}).<br>` +
+    (day.go.length ? `<b>Ce jour-là, démarrage possible : ${goH}</b> (${day.go.length}\u00a0h).` : `Ce jour-là : pas de démarrage possible` +
+      (day.best ? ` (au mieux ${day.best.n} canons à ${hourOf(axis[day.best.i])}\u00a0h).` : "."));
+  const tws = canonsTw(T0, RH0, G, CAN_MODE), ready = tws.map((t, k) => t <= START_TW ? k : -1).filter(k => k >= 0);
   const n = ready.length, go = n >= START_N && windOk;
   // altitude du 25e canon le plus froid
   const sortedK = tws.map((t, k) => k).sort((a, b) => tws[a] - tws[b]), k25 = sortedK[START_N - 1];
@@ -2150,7 +2132,7 @@ function renderCanons(){
   document.getElementById("canMap").innerHTML = canMapSVG(tws);
   document.getElementById("canLegend").innerHTML = `<span><i style="background:#3fc43f;border-radius:50%"></i>prêt : −3 °C humide ou moins</span>` +
     `<span><i style="background:#fab219;border-radius:50%"></i>limite : −2,5 à −3 °C</span><span><i style="background:#5b6c7e;border-radius:50%"></i>trop doux</span>` +
-    (can.src === "prev" ? `<span><i style="background:#3fc43f"></i>barres : canons prêts (vert = démarrage possible, orange = vent trop fort)</span>` : "");
+    `<span><i style="background:#3fc43f"></i>barres : canons prêts (vert = démarrage possible, orange = vent trop fort)</span>`;
   // numéros : on affiche d'abord la liste la plus courte (prêts, ou pas prêts quand presque tous le sont)
   const sortN = arr => arr.sort((a, b) => parseInt(a) - parseInt(b) || a.localeCompare(b));
   const nums = sortN(ready.map(k => CANONS[k][0]));
@@ -2219,7 +2201,6 @@ function renderSimu(){
   document.getElementById("simFcNote").textContent = fc ? `Prévision pour ${whenTxt(axis[0])} : air ${temp(fc.T)}, humidité ${rhTxt(fc.RH)}` +
     (fc.G != null ? `, variation prévue ${gradTxt(fc.G)} (moyenne de ${fc.n} modèle${fc.n > 1 ? "s" : ""}).` : ".") : "Appuyez sur « Calculer » pour pouvoir reprendre les prévisions.";
   saveJSON(STORE_SIMU, sim);
-  renderCanons();
 }
 // prévisions actuelles à 1800 m (et gradient prévu par les modèles qui donnent les températures en altitude)
 function simForecast(){
@@ -2537,10 +2518,9 @@ const INFO = {
     <li><b>sec</b> : 50 à 70 % ;</li><li><b>humide</b> : 70 à 85 % ;</li><li><b>très humide</b> : plus de 85 %.</li></ul><p>Pour aujourd'hui,
     seules les heures restantes comptent.</p>`],
   canons: ["Canons : démarrage de l'installation", `<p>Règle de démarrage : <b>au moins 25 canons à −3 °C de température humide
-    ou moins</b> (et un vent sous le seuil de l'onglet Réglages).</p><ul><li><b>Simulation</b> : avec les curseurs du simulateur
-    (air et hygrométrie à 1800 m) et la variation de température avec l'altitude, la page calcule la température humide à l'altitude de
-    chacun des 203 canons. Elle indique aussi l'air maximal à 1800 m pour avoir 25 canons prêts.</li><li><b>Prévisions jour par jour</b>
-    (après « Calculer ») : choisissez un jour ; les barres donnent, heure par heure, le nombre de canons prêts (vert : démarrage possible ;
+    ou moins</b> (et un vent sous le seuil de l'onglet Réglages).</p><ul><li>Le calcul se fait <b>d'après les prévisions</b> (après
+    « Calculer ») : air et hygrométrie prévus à 1800 m, variation de température avec l'altitude prévue par les modèles, puis température
+    humide à l'altitude de chacun des 203 canons. Il ne dépend pas des curseurs du simulateur.</li><li><b>Jour par jour</b> : choisissez un jour ; les barres donnent, heure par heure, le nombre de canons prêts (vert : démarrage possible ;
     orange : assez de canons mais trop de vent). Touchez une barre pour voir le plan à cette heure. Le nombre sous chaque jour = heures
     où l'on peut démarrer.</li><li><b>Plan</b> : chaque point est un canon (vert prêt, orange limite, gris trop doux). Touchez-le pour son
     numéro, son altitude et sa température humide. La liste donne les numéros des canons prêts.</li></ul><p>Positions : fichier des
@@ -2623,7 +2603,7 @@ function showTab(t, scrollTop){
     b.setAttribute("aria-selected", x === t); b.tabIndex = x === t ? 0 : -1;
   });
   document.getElementById("altBox").classList.toggle("hidden", NO_ALT_TABS.includes(t));   // l'altitude ne sert pas ici
-  if(t === "simu") renderSimu();
+  if(t === "simu"){ renderSimu(); renderCanons(); }
   if(t === "graphs") document.getElementById("spagScroll").scrollLeft = spagScrollX;
   if(scrollTop) scrollTo({top: 0});
 }
@@ -2720,8 +2700,8 @@ document.getElementById("moreWins").addEventListener("click", () => { showAllWin
 ["simT", "simRH"].forEach(id => document.getElementById(id).addEventListener("input", e => {
   sim[{simT:"T", simRH:"RH"}[id]] = parseFloat(e.target.value); sim.src = "auto"; renderSimu(); }));
 document.getElementById("secCanons").addEventListener("click", ev => {
-  const sb = ev.target.closest("button[data-cans]"), db = ev.target.closest("button[data-cand]"), hb = ev.target.closest("[data-h]"), pt = ev.target.closest("[data-k]");
-  if(sb && !sb.disabled){ can.src = sb.dataset.cans; can.hour = null; renderCanons(); }
+  const db = ev.target.closest("button[data-cand]"), hb = ev.target.closest("[data-h]"), pt = ev.target.closest("[data-k]");
+  if(ev.target.closest("#canCalc")){ calculate(); }
   else if(db){ can.day = +db.dataset.cand; can.hour = null; renderCanons(); }
   else if(hb){ can.hour = +hb.dataset.h; renderCanons(); }
   else if(pt){ can.sel = +pt.dataset.k; renderCanons(); }

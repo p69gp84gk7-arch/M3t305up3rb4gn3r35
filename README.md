@@ -215,6 +215,20 @@ humide ou moins** (et un vent sous le seuil de l'onglet Réglages).
   démarrer), barres heure par heure du nombre de canons prêts (vert : démarrage possible, orange : vent trop fort), heures
   de démarrage possibles ; air, hygrométrie et vent prévus à 1800 m, variation prévue par les modèles en altitude
   (sinon calcul automatique).
+- **Soleil** (case « Tenir compte du soleil », cochée par défaut et mémorisée) : l'ensoleillement modifie la température
+  de l'air près des canons.
+  - Relief : pour chaque canon, **pente**, **exposition** et **hauteur de l'horizon** (montagnes) tous les 10°, calculées une
+    fois pour toutes sur le relief Copernicus GLO-90 jusqu'à 25 km (`CAN_SUN` dans `index.html`). Les canons sont surtout
+    exposés nord à est ; au sud, les sommets cachent le soleil jusqu'à environ 17° de hauteur. Au 21 décembre, 51 canons
+    ne voient jamais le soleil direct ; les autres le voient en moyenne 3,8 h.
+  - Position du soleil calculée pour chaque heure (vérifiée : 23,8° de hauteur à midi solaire le 21 décembre).
+  - Soleil prévu : rayonnement direct (`direct_normal_irradiance`) et durée d'ensoleillement du meilleur modèle Open-Meteo
+    (1 appel de plus) ; s'il ne répond pas, moyenne de l'ensemble GFS ; sinon, le soleil n'est pas pris en compte.
+  - Effet : écart de température = 0,004 °C par W/m² × (soleil direct reçu par la pente du canon − soleil reçu par un terrain
+    plat dégagé), divisé par (1 + vent/15 km/h), limité à ±3 °C ; l'hygrométrie suit (même quantité d'eau dans l'air).
+    Une pente face au soleil se réchauffe, une pente à l'ombre se refroidit par rapport aux prévisions (qui valent pour un
+    terrain moyen). Ce coefficient est une **estimation** : à ajuster avec des relevés de température sur les pistes.
+  - Toucher un canon donne son exposition, sa pente, ses heures de soleil direct du jour (relief seul) et l'effet à l'heure choisie.
 - **Plan** des canons (vert prêt, orange limite −2,5 à −3 °C, gris trop doux) ; toucher un point donne son numéro, son
   altitude et sa température humide ; **liste des numéros** des canons prêts.
 

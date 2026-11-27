@@ -332,6 +332,23 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
 .sim-grad .link{margin-top:6px;display:inline-block}
 #simExplain{margin-top:10px;line-height:1.5}
 @media (min-width:1100px){.simu-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:0 18px;align-items:start}}
+/* Canons : démarrage de l'installation */
+.can-start{margin:10px 0;padding:12px 14px;border-radius:12px;border:1.5px solid var(--line);background:var(--card2)}
+.can-start .t{font-size:1.15rem;font-weight:800}
+.can-start.ok{border-color:#3fc43f}.can-start.ok .t{color:#3fc43f}
+.can-start.no{border-color:#ec835a}.can-start.no .t{color:#ec835a}
+.can-start .d{color:var(--ink2);font-size:.9rem;margin-top:4px}
+.can-days{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;-webkit-overflow-scrolling:touch}
+.can-days button{flex:0 0 auto;min-width:70px;min-height:52px;border-radius:10px;border:1px solid var(--line);background:var(--card2);
+  padding:4px 8px;line-height:1.15;font-size:.85rem;text-align:center}
+.can-days button small{display:block;font-size:.72rem;color:var(--muted)}
+.can-days button.go small{color:#3fc43f;font-weight:700}
+.can-days button[aria-pressed="true"]{border-color:var(--accent);background:#1a2c42}
+.can-map svg{display:block;width:100%;max-width:640px;height:auto;margin:0 auto}
+.can-list{margin-top:8px;line-height:1.6;color:var(--ink2)}
+.can-list b{color:var(--ink)}
+#canHours svg{display:block;width:100%;max-width:640px;height:auto;margin:0 auto}
+.can-list details{margin-top:4px}.can-list summary{min-height:32px;color:var(--accent);font-weight:600}
 .hidden{display:none!important}
 </style>
 </head>
@@ -545,6 +562,20 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
       <div class="small muted" id="simExplain"></div>
     </section>
     </div>
+
+    <section id="secCanons">
+      <h2>Canons : démarrage de l'installation <button type="button" class="info" data-info="canons" aria-label="Explication" aria-expanded="false">i</button></h2>
+      <div class="small muted">Règle : il faut au moins <b>25 canons à −3 °C humide ou moins</b> pour démarrer. Température calculée à
+        l'altitude de chacun des 203 canons.</div>
+      <div class="seg-ctl" id="canSrc" aria-label="Source"></div>
+      <div id="canDays" class="can-days"></div>
+      <div id="canHours"></div>
+      <div id="canStart" class="can-start"></div>
+      <div id="canMap" class="can-map"></div>
+      <div id="canInfo" class="small ink2"></div>
+      <div class="legend" id="canLegend"></div>
+      <div id="canList" class="small can-list"></div>
+    </section>
   </div>
 
   <div class="tab hidden" id="tab-reglages" role="tabpanel" aria-labelledby="tb-reglages">
@@ -1784,15 +1815,360 @@ function simClamp(){ sim.T = Math.round(Math.min(30, Math.max(-30, sim.T)) * 2) 
   sim.G = sim.src === "prevu" && sim.Gfc != null ? sim.Gfc : autoGradient(sim.T, sim.RH, pressureAt(SIM_REF)); }
 function gradTxt(g){ return (g > 0 ? "+" : "") + num(g, 2) + "\u00a0°C / 100\u00a0m"; }
 // conditions à une altitude, à partir des réglages à 1800 m
-function simAt(alt){
-  const P0 = pressureAt(SIM_REF), P = pressureAt(alt), T = sim.T + sim.G * (alt - SIM_REF) / 100;
-  let rh = sim.RH, sat = false;
-  if(sim.mode === "eau"){
+// conditions à une altitude, à partir de l'air (T0), de l'hygrométrie (RH0) à 1800 m et du gradient G (°C / 100 m)
+function condAt(alt, T0, RH0, G, mode){
+  const P0 = pressureAt(SIM_REF), P = pressureAt(alt), T = T0 + G * (alt - SIM_REF) / 100;
+  let rh = RH0, sat = false;
+  if(mode === "eau"){
     // même quantité de vapeur d'eau (rapport de mélange constant) : l'hygrométrie change avec la température et la pression
-    const e0 = sim.RH / 100 * es(sim.T), r = 0.622 * e0 / (P0 - e0), e = r * P / (0.622 + r);
+    const e0 = RH0 / 100 * es(T0), r = 0.622 * e0 / (P0 - e0), e = r * P / (0.622 + r);
     rh = e / es(T) * 100; if(rh > 100){ rh = 100; sat = true; }
   }
   return {alt, T, rh, sat, tw: wetBulb(T, Math.max(rh, 0.5), P)};
+}
+function simAt(alt){ return condAt(alt, sim.T, sim.RH, sim.G, sim.mode); }
+
+/* ---------- Canons : démarrage de l'installation ---------- */
+// 203 canons numérotés (fichier canons.kmz fourni le 27/11/2026) : [numéro, latitude, longitude, altitude du terrain en m]
+// Altitudes : relief Copernicus 90 m (API elevation d'Open-Meteo), le fichier n'en contenait pas.
+const CANONS = [
+  ["1",42.77006,0.56302,1436],
+  ["2",42.77020,0.56386,1453],
+  ["3",42.77015,0.56423,1452],
+  ["4",42.77001,0.56464,1452],
+  ["5",42.76967,0.56522,1476],
+  ["6",42.76934,0.56559,1476],
+  ["7",42.76901,0.56608,1504],
+  ["8",42.76867,0.56628,1504],
+  ["9",42.76836,0.56648,1504],
+  ["10",42.76809,0.56680,1535],
+  ["11",42.76788,0.56706,1535],
+  ["12",42.76771,0.56754,1545],
+  ["13",42.76756,0.56798,1545],
+  ["14",42.76735,0.56839,1582],
+  ["15",42.76710,0.56866,1582],
+  ["16",42.76680,0.56901,1582],
+  ["17",42.76655,0.56932,1622],
+  ["19",42.76625,0.57022,1630],
+  ["21",42.76618,0.57123,1641],
+  ["22",42.76625,0.57192,1658],
+  ["23",42.76635,0.57255,1681],
+  ["24",42.76656,0.57300,1681],
+  ["25",42.76700,0.57328,1682],
+  ["26",42.76749,0.57346,1711],
+  ["27",42.76797,0.57363,1713],
+  ["28",42.76840,0.57382,1702],
+  ["29",42.76876,0.57424,1731],
+  ["30",42.76902,0.57478,1731],
+  ["31",42.76908,0.57536,1755],
+  ["32",42.76902,0.57606,1775],
+  ["33",42.76887,0.57666,1789],
+  ["34",42.76594,0.57125,1641],
+  ["36",42.76562,0.57215,1680],
+  ["37",42.76549,0.57255,1693],
+  ["38",42.76531,0.57304,1693],
+  ["39",42.76515,0.57351,1711],
+  ["41",42.76486,0.57437,1742],
+  ["43",42.76455,0.57530,1766],
+  ["45",42.76398,0.57592,1799],
+  ["47",42.76362,0.57639,1799],
+  ["48",42.76368,0.57557,1785],
+  ["49",42.76356,0.57532,1785],
+  ["50",42.76951,0.57768,1789],
+  ["51",42.77011,0.57746,1752],
+  ["52",42.77025,0.57697,1752],
+  ["53",42.77011,0.57628,1737],
+  ["54",42.77020,0.57578,1719],
+  ["55",42.77030,0.57525,1719],
+  ["57",42.76965,0.57731,1778],
+  ["58",42.76946,0.57651,1760],
+  ["59",42.76960,0.57580,1742],
+  ["60",42.76965,0.57523,1742],
+  ["61",42.76994,0.57486,1720],
+  ["62",42.77024,0.57454,1706],
+  ["63",42.77058,0.57407,1691],
+  ["65",42.76954,0.56199,1455],
+  ["66",42.76915,0.56149,1476],
+  ["67",42.76881,0.56097,1476],
+  ["68",42.76844,0.56050,1467],
+  ["69",42.76771,0.55989,1495],
+  ["70",42.76709,0.55945,1508],
+  ["71",42.76659,0.55905,1522],
+  ["72",42.76617,0.55868,1522],
+  ["73",42.76569,0.55821,1549],
+  ["74",42.76526,0.55780,1549],
+  ["75",42.76471,0.55726,1590],
+  ["76",42.76417,0.55671,1590],
+  ["77",42.76384,0.55615,1624],
+  ["78",42.76366,0.55545,1645],
+  ["79",42.76353,0.55463,1671],
+  ["80",42.76332,0.55411,1708],
+  ["81",42.76293,0.55356,1708],
+  ["82",42.76290,0.55287,1730],
+  ["83",42.76247,0.55248,1748],
+  ["84",42.76191,0.55241,1748],
+  ["85",42.76145,0.55248,1772],
+  ["86",42.76105,0.55219,1772],
+  ["87",42.76056,0.55149,1813],
+  ["88",42.76020,0.55074,1835],
+  ["89",42.76039,0.55009,1835],
+  ["90",42.76064,0.54929,1858],
+  ["91",42.76048,0.54881,1871],
+  ["92",42.75988,0.54891,1877],
+  ["98",42.76923,0.56684,1509],
+  ["99",42.76908,0.56751,1523],
+  ["100",42.76879,0.56809,1523],
+  ["101",42.76837,0.56860,1539],
+  ["102",42.76797,0.56908,1555],
+  ["103",42.76757,0.56962,1565],
+  ["104",42.76718,0.57021,1598],
+  ["105",42.76687,0.57093,1623],
+  ["106",42.76652,0.57147,1641],
+  ["107",42.76612,0.57338,1706],
+  ["108",42.76607,0.57413,1706],
+  ["109",42.76600,0.57464,1733],
+  ["110",42.76594,0.57527,1757],
+  ["111",42.76470,0.57610,1787],
+  ["112",42.76537,0.57594,1783],
+  ["113",42.76590,0.57586,1776],
+  ["114",42.76650,0.57601,1776],
+  ["115",42.76672,0.57671,1792],
+  ["116",42.76629,0.57700,1780],
+  ["117",42.76574,0.57744,1787],
+  ["118",42.76520,0.57772,1762],
+  ["119",42.76512,0.57841,1741],
+  ["120",42.76857,0.57758,1798],
+  ["121",42.76822,0.57839,1788],
+  ["122",42.76818,0.57918,1781],
+  ["123",42.76760,0.57815,1795],
+  ["124",42.76702,0.57777,1785],
+  ["125",42.76631,0.57753,1761],
+  ["126",42.76583,0.57805,1761],
+  ["127",42.76537,0.57865,1741],
+  ["128",42.76506,0.57906,1741],
+  ["129",42.76473,0.57950,1726],
+  ["130",42.76438,0.57993,1726],
+  ["131",42.76402,0.58044,1711],
+  ["132",42.76388,0.58096,1692],
+  ["133",42.76378,0.58150,1692],
+  ["134",42.76362,0.58232,1673],
+  ["135",42.76350,0.58312,1654],
+  ["136",42.76347,0.58399,1637],
+  ["137",42.76387,0.58461,1623],
+  ["138",42.76428,0.58505,1605],
+  ["139",42.76482,0.58547,1605],
+  ["140",42.77007,0.57656,1737],
+  ["141",42.77066,0.57737,1752],
+  ["142",42.77096,0.57797,1714],
+  ["143",42.77141,0.57803,1714],
+  ["144",42.77183,0.57806,1665],
+  ["145",42.77222,0.57806,1665],
+  ["146",42.77270,0.57818,1620],
+  ["147",42.77305,0.57818,1620],
+  ["148",42.77343,0.57825,1581],
+  ["149",42.77390,0.57830,1581],
+  ["150",42.77446,0.57842,1552],
+  ["151",42.77524,0.57847,1525],
+  ["152",42.77575,0.57855,1525],
+  ["153",42.77653,0.57867,1490],
+  ["154",42.77712,0.57921,1464],
+  ["155",42.76455,0.57824,1765],
+  ["156",42.76386,0.57886,1750],
+  ["157",42.76356,0.57946,1730],
+  ["158",42.76360,0.58015,1711],
+  ["159",42.76352,0.58069,1711],
+  ["160",42.76342,0.58125,1692],
+  ["161",42.76308,0.58245,1669],
+  ["162",42.76339,0.57924,1730],
+  ["163",42.76296,0.57969,1737],
+  ["164",42.76258,0.58021,1713],
+  ["165",42.76221,0.58078,1734],
+  ["166",42.76190,0.58140,1707],
+  ["167",42.76178,0.58211,1687],
+  ["168",42.76157,0.58275,1696],
+  ["169",42.76117,0.58318,1696],
+  ["170",42.76117,0.58362,1685],
+  ["171",42.76140,0.58423,1678],
+  ["172",42.76146,0.58494,1678],
+  ["173",42.76135,0.58564,1665],
+  ["174",42.76128,0.58651,1655],
+  ["175",42.76169,0.58619,1640],
+  ["176",42.76213,0.58584,1640],
+  ["177",42.76250,0.58549,1636],
+  ["178",42.76296,0.58512,1636],
+  ["180",42.76781,0.57490,1739],
+  ["181",42.76818,0.57503,1764],
+  ["201",42.75974,0.54970,1877],
+  ["202",42.75928,0.54948,1877],
+  ["203",42.75905,0.54891,1899],
+  ["204",42.75845,0.54870,1899],
+  ["205",42.75817,0.54807,1953],
+  ["206",42.75826,0.54759,1953],
+  ["207",42.75826,0.54720,1972],
+  ["208",42.75817,0.54676,1972],
+  ["209",42.75864,0.54638,1983],
+  ["210",42.75841,0.54618,1983],
+  ["211",42.75848,0.54519,2008],
+  ["212",42.75907,0.54466,2035],
+  ["213",42.75955,0.54412,2061],
+  ["214",42.76027,0.54372,2039],
+  ["215",42.76059,0.54294,2069],
+  ["216",42.76145,0.54262,2066],
+  ["217",42.76188,0.54221,2088],
+  ["218",42.76246,0.54154,2122],
+  ["219",42.76298,0.54166,2167],
+  ["220",42.76357,0.54197,2123],
+  ["221",42.76396,0.54224,2123],
+  ["318",42.76751,0.54718,1869],
+  ["319",42.76782,0.54730,1869],
+  ["320",42.76775,0.54798,1845],
+  ["321",42.76768,0.54853,1814],
+  ["322",42.76766,0.54931,1769],
+  ["323",42.76788,0.54983,1769],
+  ["324",42.76804,0.55029,1728],
+  ["325",42.76813,0.55084,1698],
+  ["326",42.76848,0.55145,1676],
+  ["327",42.76893,0.55194,1640],
+  ["328",42.76935,0.55268,1600],
+  ["329",42.76973,0.55327,1600],
+  ["330",42.77023,0.55394,1564],
+  ["331",42.77079,0.55491,1558],
+  ["332",42.77112,0.55525,1544],
+  ["333",42.77141,0.55552,1544]
+];
+const START_N = 25, START_TW = -3;   // il faut au moins 25 canons à −3 °C humide ou moins
+const CAN_BY_ALT = CANONS.slice().sort((a, b) => b[3] - a[3]);   // du plus haut au plus bas
+// nombre de canons prêts (s'arrête dès que « stop » est atteint, pour aller vite)
+function canonsReady(T0, RH0, G, mode, stop){
+  const order = G <= 0 ? CAN_BY_ALT : CAN_BY_ALT.slice().reverse();   // les plus froids d'abord
+  let n = 0;
+  for(const c of order){ if(condAt(c[3], T0, RH0, G, mode).tw <= START_TW){ n++; if(stop && n >= stop) return n; } }
+  return n;
+}
+function canonsTw(T0, RH0, G, mode){ return CANONS.map(c => condAt(c[3], T0, RH0, G, mode).tw); }
+// air maximal à 1800 m (avec cette hygrométrie) pour avoir 25 canons prêts, gradient automatique ou fixe
+function airForStart(RH0, Gfix, mode){
+  const P0 = pressureAt(SIM_REF), g = T => Gfix != null ? Gfix : autoGradient(T, RH0, P0);
+  const ok = T => canonsReady(T, RH0, g(T), mode, START_N) >= START_N;
+  let lo = -30, hi = 30;
+  if(ok(hi)) return hi; if(!ok(lo)) return null;
+  for(let k = 0; k < 16; k++){ const m = (lo + hi) / 2; if(ok(m)) lo = m; else hi = m; }
+  return lo;
+}
+// prévisions : air, hygrométrie, vent à 1800 m et gradient prévu (moyenne des modèles en altitude, sinon automatique)
+function fcAt(i){
+  const R = results[ALTS.findIndex(a => a.alt === SIM_REF)];
+  if(!R || R.T[i] == null || R.RH[i] == null) return null;
+  const gs = isoModels.map(m => { const j = m.time.indexOf(axis[i]); return j >= 0 ? m.grad[j] : null; }).filter(x => x != null);
+  return {T:R.T[i], RH:R.RH[i], W:R.W[i], G: gs.length ? mean(gs) : autoGradient(R.T[i], R.RH[i], pressureAt(SIM_REF)), Gsrc: gs.length ? "prévu" : "automatique"};
+}
+const can = {src:"sim", day:0, hour:null, sel:null};   // source : "sim" (curseurs) ou "prev" (prévisions)
+let canDayCache = null;
+function canDaySummary(){
+  // pour chaque jour : heures où le démarrage est possible (≥ 25 canons prêts et vent sous le seuil)
+  const key = fetchedAt + "|" + settings.wind + "|" + [...selModels].join(",") + "|" + sim.mode;
+  if(canDayCache && canDayCache.key === key) return canDayCache.days;
+  const out = days.slice(0, CAL_DAYS).map(d => {
+    const hours = d.idx.map(i => { const f = fcAt(i); if(!f) return null;
+      const n = canonsReady(f.T, f.RH, f.G, sim.mode); return {i, n, f, wind: f.W == null || f.W <= settings.wind}; });
+    const go = hours.filter(h => h && h.n >= START_N && h.wind);
+    return {d, hours, go, best: hours.filter(Boolean).sort((a, b) => b.n - a.n)[0] || null};
+  });
+  canDayCache = {key, days: out};
+  return out;
+}
+function canMapSVG(tws){
+  const lat0 = 42.767, kx = Math.cos(lat0 * Math.PI / 180) * 111320, ky = 110540;
+  const lons = CANONS.map(c => c[2]), lats = CANONS.map(c => c[1]);
+  const x0 = Math.min(...lons), x1 = Math.max(...lons), y0 = Math.min(...lats), y1 = Math.max(...lats);
+  const W = 360, pad = 12, sc = (W - 2 * pad) / ((x1 - x0) * kx), H = Math.round((y1 - y0) * ky * sc + 2 * pad + 14);
+  const X = lon => pad + (lon - x0) * kx * sc, Y = lat => pad + 14 + (y1 - lat) * ky * sc;
+  const col = tw => tw <= START_TW ? "#3fc43f" : tw <= -2.5 ? "#fab219" : "#5b6c7e";
+  let s = `<rect x="0" y="0" width="${W}" height="${H}" rx="10" fill="#131d28"/>`;
+  s += `<text x="${W - 14}" y="18" fill="#8597ab" font-size="11" text-anchor="end">N ↑</text>`;
+  const m500 = 500 * kx / kx * sc;   // échelle : 500 m
+  s += `<line x1="${pad}" x2="${pad + m500}" y1="${H - 8}" y2="${H - 8}" stroke="#8597ab" stroke-width="2"/><text x="${pad + m500 + 5}" y="${H - 4}" fill="#8597ab" font-size="10">500 m</text>`;
+  const order = CANONS.map((c, k) => k).sort((a, b) => (tws[a] <= START_TW) - (tws[b] <= START_TW));   // les canons prêts par-dessus
+  order.forEach(k => { const c = CANONS[k];
+    s += `<circle data-k="${k}" cx="${X(c[2]).toFixed(1)}" cy="${Y(c[1]).toFixed(1)}" r="${can.sel === k ? 6 : 4}" fill="${col(tws[k])}" stroke="${can.sel === k ? "#e8eef5" : "#0b121a"}" stroke-width="${can.sel === k ? 2 : 1}"/>`; });
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Plan des 203 canons, colorés selon leur température humide">${s}</svg>`;
+}
+function canHoursSVG(day){
+  // une barre par heure : nombre de canons prêts, trait à 25
+  const W = 360, top = 10, plot = 90, H = top + plot + 22, n = 24, bw = (W - 30) / n, max = CANONS.length;
+  const y = v => top + plot - Math.min(v, max) / max * plot;
+  let s = `<line x1="28" x2="${W}" y1="${y(START_N)}" y2="${y(START_N)}" stroke="#fab219" stroke-dasharray="4 3"/>`;
+  s += `<text x="24" y="${y(START_N) + 3}" fill="#fab219" font-size="9" text-anchor="end">25</text><text x="24" y="${y(max) + 8}" fill="#8597ab" font-size="9" text-anchor="end">${max}</text>`;
+  day.hours.forEach(hh => { if(!hh) return; const hr = hourOf(axis[hh.i]), x = 30 + hr * bw;
+    const go = hh.n >= START_N && hh.wind, c = go ? "#3fc43f" : hh.n >= START_N ? "#ec835a" : "#3a4b5d";
+    if(hh.n > 0) s += `<rect x="${(x + 1).toFixed(1)}" y="${y(hh.n).toFixed(1)}" width="${(bw - 2).toFixed(1)}" height="${(top + plot - y(hh.n)).toFixed(1)}" rx="1.5" fill="${c}"/>`;
+    if(can.hour === hh.i) s += `<rect x="${x.toFixed(1)}" y="${top - 2}" width="${bw.toFixed(1)}" height="${plot + 4}" fill="none" stroke="#e8eef5" stroke-width="1.5" rx="2"/>`;
+    s += `<rect data-h="${hh.i}" x="${x.toFixed(1)}" y="0" width="${bw.toFixed(1)}" height="${H}" fill="transparent"/>`; });
+  [0, 6, 12, 18].forEach(hr => s += `<text x="${(30 + hr * bw + bw / 2).toFixed(1)}" y="${H - 6}" fill="#8597ab" font-size="9.5" text-anchor="middle">${hr}h</text>`);
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Nombre de canons prêts heure par heure">${s}</svg>`;
+}
+function renderCanons(){
+  const fcOk = !!(results && usedModels().length);
+  if(!fcOk && can.src === "prev") can.src = "sim";
+  document.getElementById("canSrc").innerHTML = `<button type="button" data-cans="sim" aria-pressed="${can.src === "sim"}">Simulation (curseurs)</button>` +
+    `<button type="button" data-cans="prev" aria-pressed="${can.src === "prev"}"${fcOk ? "" : " disabled"}>Prévisions jour par jour${fcOk ? "" : " (après Calculer)"}</button>`;
+  let T0, RH0, G, title, sub = "";
+  const dEl = document.getElementById("canDays"), hEl = document.getElementById("canHours");
+  if(can.src === "prev"){
+    const sum = canDaySummary();
+    if(can.day >= sum.length) can.day = 0;
+    dEl.innerHTML = sum.map((x, k) => `<button type="button" data-cand="${k}" aria-pressed="${k === can.day}" class="${x.go.length ? "go" : ""}">${cap(dayLabel(x.d.key))}<small>${x.go.length ? "✔ " + x.go.length + "\u00a0h" : "—"}</small></button>`).join("");
+    const day = sum[can.day];
+    if(can.hour == null || !day.d.idx.includes(can.hour)) can.hour = (day.go[0] || day.best || {i: day.d.idx[0]}).i;
+    hEl.innerHTML = canHoursSVG(day);
+    const hh = day.hours.find(x => x && x.i === can.hour);
+    if(!hh){ document.getElementById("canStart").innerHTML = "Pas de prévision pour cette heure."; return; }
+    T0 = hh.f.T; RH0 = hh.f.RH; G = hh.f.G;
+    title = cap(whenTxt(axis[can.hour]));
+    const goH = hourRanges(day.go.map(x => hourOf(axis[x.i])));
+    sub = `${title} : air ${temp(T0)} · 💧 ${rhTxt(RH0)} · vent ${num(hh.f.W, 0)}\u00a0km/h à 1800 m · variation ${gradTxt(G)} (${hh.f.Gsrc}).<br>` +
+      (day.go.length ? `<b>Ce jour-là, démarrage possible : ${goH}</b> (${day.go.length}\u00a0h).` : `Ce jour-là : pas de démarrage possible` +
+        (day.best ? ` (au mieux ${day.best.n} canons à ${hourOf(axis[day.best.i])}\u00a0h).` : "."));
+    var windOk = hh.wind;
+  } else {
+    dEl.innerHTML = ""; hEl.innerHTML = "";
+    T0 = sim.T; RH0 = sim.RH; G = sim.G; title = "Simulation";
+    var windOk = true;
+    const need = airForStart(RH0, sim.src === "prevu" ? sim.Gfc : null, sim.mode);
+    sub = `Air ${temp(T0)} · 💧 ${rhTxt(RH0)} à 1800 m · variation ${gradTxt(G)}.<br>` + (need == null ? "Même à −30 °C, pas assez de canons à −3 °C."
+      : `Avec ${rhTxt(RH0)} d'humidité, il faut un air à <b>${temp(need)}</b> ou moins à 1800 m pour avoir 25 canons à −3 °C.`);
+  }
+  const tws = canonsTw(T0, RH0, G, sim.mode), ready = tws.map((t, k) => t <= START_TW ? k : -1).filter(k => k >= 0);
+  const n = ready.length, go = n >= START_N && windOk;
+  // altitude du 25e canon le plus froid
+  const sortedK = tws.map((t, k) => k).sort((a, b) => tws[a] - tws[b]), k25 = sortedK[START_N - 1];
+  document.getElementById("canStart").className = "can-start " + (go ? "ok" : "no");
+  document.getElementById("canStart").innerHTML = `<div class="t">${go ? "✔ Démarrage possible" : "✗ Démarrage impossible"} : ${n} canon${n > 1 ? "s" : ""} à −3\u00a0°C ou moins</div>
+    <div class="d">${n >= START_N && !windOk ? `<b>Vent trop fort</b> (plus de ${settings.wind}\u00a0km/h). ` : ""}Il en faut ${START_N} sur ${CANONS.length}. Le 25e canon le plus froid
+      (n°\u00a0${CANONS[k25][0]}, ${CANONS[k25][3]}\u00a0m) est à ${temp(tws[k25])} humide.</div><div class="d">${sub}</div>`;
+  if(can.sel != null && can.sel >= CANONS.length) can.sel = null;
+  document.getElementById("canMap").innerHTML = canMapSVG(tws);
+  document.getElementById("canLegend").innerHTML = `<span><i style="background:#3fc43f;border-radius:50%"></i>prêt : −3 °C humide ou moins</span>` +
+    `<span><i style="background:#fab219;border-radius:50%"></i>limite : −2,5 à −3 °C</span><span><i style="background:#5b6c7e;border-radius:50%"></i>trop doux</span>` +
+    (can.src === "prev" ? `<span><i style="background:#3fc43f"></i>barres : canons prêts (vert = démarrage possible, orange = vent trop fort)</span>` : "");
+  // numéros : on affiche d'abord la liste la plus courte (prêts, ou pas prêts quand presque tous le sont)
+  const sortN = arr => arr.sort((a, b) => parseInt(a) - parseInt(b) || a.localeCompare(b));
+  const nums = sortN(ready.map(k => CANONS[k][0]));
+  const notNums = sortN(CANONS.filter((c, k) => tws[k] > START_TW).map(c => c[0]));
+  document.getElementById("canList").innerHTML = !n ? "<b>Aucun canon prêt.</b>"
+    : n === CANONS.length ? `<b>Les ${n} canons sont prêts.</b>`
+    : n > CANONS.length / 2 ? `<b>Canons prêts : ${n} sur ${CANONS.length}.</b> Pas prêts (${notNums.length}) : ${notNums.join(", ")}` +
+        `<details><summary>Voir les numéros des ${n} canons prêts</summary>${nums.join(", ")}</details>`
+    : `<b>Canons prêts (${n})</b> : ${nums.join(", ")}`;
+  canInfo(tws);
+}
+let canTws = null;
+function canInfo(tws){
+  if(tws) canTws = tws;
+  const el = document.getElementById("canInfo");
+  if(can.sel == null || !canTws){ el.textContent = "Touchez un point du plan pour voir le canon."; return; }
+  const c = CANONS[can.sel], tw = canTws[can.sel];
+  el.innerHTML = `<b>Canon n° ${c[0]}</b> · ${c[3]}\u00a0m · humide <b style="color:${tw <= START_TW ? "#3fc43f" : tw <= -2.5 ? "#fab219" : "var(--ink2)"}">${temp(tw)}</b> → ${tw <= START_TW ? "prêt" : "pas prêt"}`;
 }
 // température de l'air maximale pour atteindre le seuil de température humide, à cette hygrométrie
 function airNeeded(rh, thr, P){
@@ -1843,6 +2219,7 @@ function renderSimu(){
   document.getElementById("simFcNote").textContent = fc ? `Prévision pour ${whenTxt(axis[0])} : air ${temp(fc.T)}, humidité ${rhTxt(fc.RH)}` +
     (fc.G != null ? `, variation prévue ${gradTxt(fc.G)} (moyenne de ${fc.n} modèle${fc.n > 1 ? "s" : ""}).` : ".") : "Appuyez sur « Calculer » pour pouvoir reprendre les prévisions.";
   saveJSON(STORE_SIMU, sim);
+  renderCanons();
 }
 // prévisions actuelles à 1800 m (et gradient prévu par les modèles qui donnent les températures en altitude)
 function simForecast(){
@@ -2159,6 +2536,15 @@ const INFO = {
     choisis). Plus la case est claire, plus l'air est sec, donc favorable à la production :</p><ul><li><b>très sec</b> : 50 % ou moins ;</li>
     <li><b>sec</b> : 50 à 70 % ;</li><li><b>humide</b> : 70 à 85 % ;</li><li><b>très humide</b> : plus de 85 %.</li></ul><p>Pour aujourd'hui,
     seules les heures restantes comptent.</p>`],
+  canons: ["Canons : démarrage de l'installation", `<p>Règle de démarrage : <b>au moins 25 canons à −3 °C de température humide
+    ou moins</b> (et un vent sous le seuil de l'onglet Réglages).</p><ul><li><b>Simulation</b> : avec les curseurs du simulateur
+    (air et hygrométrie à 1800 m) et la variation de température avec l'altitude, la page calcule la température humide à l'altitude de
+    chacun des 203 canons. Elle indique aussi l'air maximal à 1800 m pour avoir 25 canons prêts.</li><li><b>Prévisions jour par jour</b>
+    (après « Calculer ») : choisissez un jour ; les barres donnent, heure par heure, le nombre de canons prêts (vert : démarrage possible ;
+    orange : assez de canons mais trop de vent). Touchez une barre pour voir le plan à cette heure. Le nombre sous chaque jour = heures
+    où l'on peut démarrer.</li><li><b>Plan</b> : chaque point est un canon (vert prêt, orange limite, gris trop doux). Touchez-le pour son
+    numéro, son altitude et sa température humide. La liste donne les numéros des canons prêts.</li></ul><p>Positions : fichier des
+    canons ; altitudes : relief Copernicus (90 m). Les prévisions utilisent les modèles choisis dans Réglages.</p>`],
   simu: ["Simulateur de température humide", `<p>Réglez la température de l'air (dite « sèche ») et l'hygrométrie à 1800 m avec
     les curseurs (ou − / +) : la température humide s'affiche en haut, en couleur selon le niveau (limite, production, excellent),
     par rapport au seuil de l'onglet Réglages.</p><p>La ligne du dessous indique la température de l'air à ne pas dépasser pour
@@ -2333,6 +2719,13 @@ document.getElementById("moreDays").addEventListener("click", () => { showAllDay
 document.getElementById("moreWins").addEventListener("click", () => { showAllWins = !showAllWins; renderStarts(); });
 ["simT", "simRH"].forEach(id => document.getElementById(id).addEventListener("input", e => {
   sim[{simT:"T", simRH:"RH"}[id]] = parseFloat(e.target.value); sim.src = "auto"; renderSimu(); }));
+document.getElementById("secCanons").addEventListener("click", ev => {
+  const sb = ev.target.closest("button[data-cans]"), db = ev.target.closest("button[data-cand]"), hb = ev.target.closest("[data-h]"), pt = ev.target.closest("[data-k]");
+  if(sb && !sb.disabled){ can.src = sb.dataset.cans; can.hour = null; renderCanons(); }
+  else if(db){ can.day = +db.dataset.cand; can.hour = null; renderCanons(); }
+  else if(hb){ can.hour = +hb.dataset.h; renderCanons(); }
+  else if(pt){ can.sel = +pt.dataset.k; renderCanons(); }
+});
 document.getElementById("tab-simu").addEventListener("click", ev => {
   const st = ev.target.closest("button[data-sim]"), md = ev.target.closest("button[data-simm]");
   if(st){ sim[st.dataset.sim] += parseFloat(st.dataset.d); sim.src = "auto"; renderSimu(); }

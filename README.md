@@ -148,6 +148,24 @@ Onglet **Simulateur** (fonctionne sans calcul ni connexion) :
 
 Les réglages du simulateur sont gardés dans le téléphone.
 
+### Canons : démarrage de l'installation
+
+Dans le Simulateur, le bloc **Canons** applique la règle de démarrage : **au moins 25 canons à −3 °C de température
+humide ou moins** (et un vent sous le seuil de l'onglet Réglages).
+
+- **203 canons numérotés** (fichier `canons.kmz` fourni le 27/11/2026 : numéros et positions GPS). Le fichier ne contenant
+  pas d'altitudes, elles ont été lues sur le relief Copernicus 90 m (API `elevation` d'Open-Meteo) : de 1436 à 2167 m ;
+  le 25e canon le plus haut est à 1869 m. Seuls les numéros et positions sont dans la page (`CANONS` dans `index.html`).
+- La température humide de chaque canon est calculée à son altitude à partir de l'air et de l'hygrométrie à 1800 m et de la
+  variation avec l'altitude (même calcul que le profil de la montagne).
+- **Simulation** : selon les curseurs ; donne aussi l'air maximal à 1800 m pour avoir 25 canons prêts.
+- **Prévisions jour par jour** (après « Calculer ») : sélecteur de jour (15 jours, avec le nombre d'heures où l'on peut
+  démarrer), barres heure par heure du nombre de canons prêts (vert : démarrage possible, orange : vent trop fort), heures
+  de démarrage possibles ; air, hygrométrie et vent prévus à 1800 m, variation prévue par les modèles en altitude
+  (sinon calcul automatique).
+- **Plan** des canons (vert prêt, orange limite −2,5 à −3 °C, gris trop doux) ; toucher un point donne son numéro, son
+  altitude et sa température humide ; **liste des numéros** des canons prêts.
+
 ## Humidité de l'air (hygrométrie)
 
 Un air sec est favorable à la neige de culture : la température humide est plus basse que celle de l'air.

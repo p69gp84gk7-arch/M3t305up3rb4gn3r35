@@ -72,7 +72,7 @@ l'altitude restent en haut. L'onglet ouvert est gardé dans le téléphone.
 | Onglet | Contenu |
 |---|---|
 | **Résumé** | Jour par jour, Démarrages possibles |
-| **Calendrier** | Calendrier à 15 jours façon Apple, temps de fonctionnement estimé (une barre par altitude) |
+| **Calendrier** | Calendrier à 15 jours façon Apple, temps de fonctionnement estimé (une barre par altitude), canons : démarrage de l'installation jour par jour |
 | **Graphiques** | Heure par heure, Diagramme des scénarios |
 | **Tableaux** | Toutes les altitudes, Par modèle, Modèles indisponibles (avec choix des modèles affichés) |
 | **Simulateur** | Simulateur de température humide, profil de la montagne (650 à 2100 m) |
@@ -148,25 +148,6 @@ Onglet **Simulateur** (fonctionne sans calcul ni connexion) :
 
 Les réglages du simulateur sont gardés dans le téléphone.
 
-### Canons : démarrage de l'installation
-
-Dans le Simulateur, le bloc **Canons** applique la règle de démarrage : **au moins 25 canons à −3 °C de température
-humide ou moins** (et un vent sous le seuil de l'onglet Réglages).
-
-- **203 canons numérotés** (fichier `canons.kmz` fourni le 27/11/2026 : numéros et positions GPS). Le fichier ne contenant
-  pas d'altitudes, elles ont été lues sur le relief Copernicus 90 m (API `elevation` d'Open-Meteo) : de 1436 à 2167 m ;
-  le 25e canon le plus haut est à 1869 m. Seuls les numéros et positions sont dans la page (`CANONS` dans `index.html`).
-- La température humide de chaque canon est calculée à son altitude à partir de l'air et de l'hygrométrie à 1800 m et de la
-  variation avec l'altitude (même calcul que le profil de la montagne).
-- Le calcul se fait **uniquement d'après les prévisions** (pas d'après les curseurs du simulateur) ; avant le premier calcul,
-  un bouton « Calculer maintenant » est proposé.
-- **Jour par jour** (après « Calculer ») : sélecteur de jour (15 jours, avec le nombre d'heures où l'on peut
-  démarrer), barres heure par heure du nombre de canons prêts (vert : démarrage possible, orange : vent trop fort), heures
-  de démarrage possibles ; air, hygrométrie et vent prévus à 1800 m, variation prévue par les modèles en altitude
-  (sinon calcul automatique).
-- **Plan** des canons (vert prêt, orange limite −2,5 à −3 °C, gris trop doux) ; toucher un point donne son numéro, son
-  altitude et sa température humide ; **liste des numéros** des canons prêts.
-
 ## Humidité de l'air (hygrométrie)
 
 Un air sec est favorable à la neige de culture : la température humide est plus basse que celle de l'air.
@@ -217,6 +198,25 @@ Onglet **Calendrier** :
   à l'altitude choisie ; un point de couleur donne la sûreté du jour. Toucher un carré affiche la journée en grand
   en dessous (une barre par altitude, heures exactes, trait « maintenant »), et toucher une barre en donne le détail
   (heures, chances, température humide la plus basse).
+
+### Canons : démarrage de l'installation
+
+Dans le **Calendrier**, sous le temps de fonctionnement, le bloc **Canons** applique la règle de démarrage : **au moins 25 canons à −3 °C de température
+humide ou moins** (et un vent sous le seuil de l'onglet Réglages).
+
+- **203 canons numérotés** (fichier `canons.kmz` fourni le 27/11/2026 : numéros et positions GPS). Le fichier ne contenant
+  pas d'altitudes, elles ont été lues sur le relief Copernicus 90 m (API `elevation` d'Open-Meteo) : de 1436 à 2167 m ;
+  le 25e canon le plus haut est à 1869 m. Seuls les numéros et positions sont dans la page (`CANONS` dans `index.html`).
+- La température humide de chaque canon est calculée à son altitude à partir de l'air et de l'hygrométrie à 1800 m et de la
+  variation avec l'altitude (même calcul que le profil de la montagne).
+- Le calcul se fait **uniquement d'après les prévisions** (pas d'après les curseurs du simulateur).
+- **Jour par jour** : le jour est **le même que celui choisi dans le calendrier** (toucher un carré du calendrier ou un jour
+  du bloc Canons change les deux) ; sélecteur de jour (15 jours, avec le nombre d'heures où l'on peut
+  démarrer), barres heure par heure du nombre de canons prêts (vert : démarrage possible, orange : vent trop fort), heures
+  de démarrage possibles ; air, hygrométrie et vent prévus à 1800 m, variation prévue par les modèles en altitude
+  (sinon calcul automatique).
+- **Plan** des canons (vert prêt, orange limite −2,5 à −3 °C, gris trop doux) ; toucher un point donne son numéro, son
+  altitude et sa température humide ; **liste des numéros** des canons prêts.
 
 ## Autres sites météo
 

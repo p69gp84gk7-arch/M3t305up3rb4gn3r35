@@ -339,6 +339,8 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
 .can-start.ok{border-color:#3fc43f}.can-start.ok .t{color:#3fc43f}
 .can-start.no{border-color:#ec835a}.can-start.no .t{color:#ec835a}
 .can-start .d{color:var(--ink2);font-size:.9rem;margin-top:4px}
+.can-sun{display:flex;align-items:center;gap:8px;margin:8px 0 2px;font-size:.92rem;color:var(--ink2);min-height:36px}
+.can-sun input{width:20px;height:20px;accent-color:#ffd54a}
 .can-days{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;-webkit-overflow-scrolling:touch}
 .can-days button{flex:0 0 auto;min-width:70px;min-height:52px;border-radius:10px;border:1px solid var(--line);background:var(--card2);
   padding:4px 8px;line-height:1.15;font-size:.85rem;text-align:center}
@@ -439,6 +441,7 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
         <h2>Canons : démarrage de l'installation <button type="button" class="info" data-info="canons" aria-label="Explication" aria-expanded="false">i</button></h2>
         <div class="small muted">Règle : il faut au moins <b>25 canons à −3 °C humide ou moins</b> pour démarrer. Température calculée à
           l'altitude de chacun des 203 canons, d'après les prévisions. Le jour suit celui choisi dans le calendrier ; touchez une barre pour choisir l'heure.</div>
+        <label class="can-sun"><input type="checkbox" id="canSun"> ☀ Tenir compte du soleil (exposition, pente et ombre des montagnes)</label>
         <div id="canDays" class="can-days"></div>
         <div id="canHours"></div>
         <div id="canStart" class="can-start"></div>
@@ -969,6 +972,7 @@ async function calculate(){
     ...ISO_MODELS.map(m => ({meta:m, kind:"iso", url:isoURL(m.id)}))
   ];
   let done = 0;
+  const sunP = fetchSun().catch(e => { console.info("Rayonnement solaire indisponible :", e.message); return null; });
   const settled = await Promise.allSettled(jobs.map(j =>
     fetchJSON(j.url, 30000).then(json => j.kind === "iso" ? parseIso(json, j.meta) : parseModel(json, j.meta, j.kind)).finally(() => {
       done++; setStatus(`Prévisions reçues : ${done} / ${jobs.length}…`);
@@ -997,6 +1001,7 @@ async function calculate(){
     ok.push(m);
   });
   models = ok; missing = miss; isoModels = isoOk;
+  sunData = await sunP; sunHourCache.clear();
   // axe horaire : union des heures, à partir de l'heure en cours
   const set = new Set();
   models.forEach(m => m.points[REF_IDX].time.forEach(t => { if(t >= nowKey) set.add(t); }));
@@ -2037,17 +2042,121 @@ const CANONS = [
   ["332",42.77112,0.55525,1544],
   ["333",42.77141,0.55552,1544]
 ];
+// Relief autour de chaque canon (même ordre que CANONS), calculé sur le relief Copernicus GLO-90 (90 m) :
+// [pente en degrés, exposition en degrés (direction où la pente descend : 0 = nord, 90 = est, 180 = sud),
+//  hauteur de l'horizon (montagnes) tous les 10° d'azimut depuis le nord, 1 caractère par direction = degrés (0-9, A = 10, … z = 61)].
+const CAN_SUN = [[22,326,"3301369DEFHGFGJMOONMLJHJKLJGFDA88622"],[14,341,"320248CFGGHHFGJLMNNMJJGIJKIFEC987522"],[14,353,"32037BEGHGIHGGJLNNNMKJGIJKIFEB987522"],[16,350,"3225AEGHIHIHGGJLNNONKJGIJJIEEB887422"],[15,346,"326ADFGIIIIIHGJLNOOONKHIJJHEDB886412"],[18,350,"326ACEGHHIIHGGJMNOOOOLIHIIHEDA876312"],[13,356,"3379CEGGHIJHGHJMNPOOONKHIHGECA775312"],[15,8,"3369CEFGHIIHHHKNOQPPOPNKIHGECA765311"],[18,4,"3258BCEFHIIHGHLNOQPPPOOMIGGEB9765211"],[18,355,"2258ACEFHIIHGHLNPRQPPOOMJGGEB9664211"],[19,352,"2258ACEFHIIHHILOPSRQPONMKGGEA9654211"],[19,343,"2258ACEFHIIHHILOPQRQPNLKIGGEA8654211"],[18,338,"2358ACEGIIIHHILOPQSRPNLJHGFD98553211"],[19,338,"2257ACEGIIIHHIKOPQRRPNLIGGFD98553211"],[21,340,"22479BEGIIHHHILOQQRSQOLIFFFD97543211"],[21,347,"20369BEGHHHHGILOQQRRRPLIFFEC87542211"],[21,348,"20368BEGHHGGGILPRRRRRQMIFFEC87432211"],[21,340,"20369CFGHHHHHIKNQRRQQPNJFFDB86432211"],[18,322,"1247BEHIIIIIIIJLNPQPOMLIEECA75332211"],[18,301,"126AEGIJJJKJIIIKLMNNMKJGCECA65332211"],[20,283,"137BEHJKKKKJJHHHIJKKKIGEADB964222111"],[21,270,"148CFHJKLKKJIHFFGGGHHFEC9DB954221111"],[23,267,"148BEHJKLLKJHGEDDDEEEDCA9CA953221111"],[23,268,"126AEGIKLLKJIFDBBBCCCBA99CA853121111"],[23,278,"1026ADGIJKKJIFDAAAAAA999ABA743111111"],[24,284,"10269DGIKLLLKJHEB9999889ABA743121111"],[23,284,"00048BEGIJKKJIHEB8888889AB9642111111"],[21,288,"000158BDFHIIIHGEB8888888AA9632111111"],[19,294,"0000258BCEFGGGFDB87888889A8531111111"],[17,299,"00001579BCDEEDDCA8788888898521011101"],[14,299,"0000134679AAAA9976788888798421011101"],[19,329,"1136ADGHHHHHHIKMOQRQPNLIFECA75332111"],[18,322,"1048BEFGHHHHHIJLMNPPOMJHEDBA75322111"],[18,319,"1159CEFGHIIHIIJKLMNONMJGDDBA64221111"],[17,315,"1269CEFGHIIIIIJKLMMNMLJGDDB964221111"],[17,308,"1269BDEGHIIIIIIJKKLKKKIFCCA964211111"],[18,294,"0368ACEGHIIIIIIIIIIHGGFEABA853111111"],[20,293,"02468ACDFGHHIHHGFFEECBA98AA852111101"],[15,310,"001011346799ABBCBBAA9998799852011101"],[11,320,"000011112245677888789888679852011100"],[17,322,"0010113578ABCDEEEEDCCA9878A852011100"],[18,330,"00001124679BCDEFFGFEDBA878A852011100"],[12,342,"000011112212224566688887797420011001"],[19,347,"0000112122259DGHIHGECA78897321111001"],[21,335,"000011212369DFGHGGEB8878997421111001"],[20,318,"000011259BEGHJIHGEC98888997421111101"],[21,319,"00002127ADFHIJJHGEC98888A98431111111"],[20,322,"00002125ADFHIJIHGEB88888AA8431121111"],[16,322,"0000111123689AA987688888897420011001"],[18,305,"00001148ABCDDEDCA9788878897421011101"],[19,306,"00001148BEFFGFFECA788888998431111101"],[19,302,"00001259CEGHHGGEDA788888AA8531111111"],[18,303,"00002158BEGIIIHGDB788888AA8532121111"],[18,313,"10002125ADFHIHHFDA888888AA8542221111"],[22,324,"100021227CFHIIHGEB988898BA8542221111"],[27,334,"3301237BCFFHKNOPQQOMMKIKLMKIGEC88632"],[25,335,"3201236ACEHLOQRRQOPMMKIKLMKJIGC88632"],[20,334,"32002359BEIKNPPPPPPNNKJKLMLLKIFA8642"],[15,352,"32002358BEILNOPPPQPONKJLMNLLLKIE9642"],[11,6,"22002347BEHKMOPPQRPPOKJLMOMLLKJGC742"],[10,2,"22002347BFILNPPRSTQRPLKLMPONLKJHEA52"],[8,1,"22002347BFJLNPRTVTRRQMKMNOPNMKJHFB72"],[12,349,"22002348CGJMPTVWWUTTRNLMNPQQNMKIGD93"],[18,2,"22002237BFJNSUWWVTUURNLNOORQPNKIGC94"],[20,2,"21002237BFKPTVWVUUVUSOLNOOQRPNLIFC95"],[21,9,"210022269FKPRTTTTVWUSOLNOOQRPOKIEA74"],[18,8,"110022259FKOQRSTVXXVTOMNOOPQQOMIEA63"],[24,27,"110012258EJMOQRUXXXVSRQPOOPQRPMKFB73"],[25,42,"110012245AFJLMQUVVVTQNNNPOQRRQOKHC83"],[21,59,"1100121337CGIKPRSTSROLLNPPQRRSPMIE94"],[20,66,"1100121236BEGKOQRRRPNLMOPPRRRSQNJFA4"],[18,74,"1100111226ADGLOQRRRONLMOPPRRRRRPLGB6"],[17,96,"31001111249AFJMOOPNNLLMOQRSTTSSROKE9"],[17,89,"61001111259CHKNOQQOOMMNOQRUUTSRQPMGB"],[20,51,"31001111279GKOQRTSQQONNPQQRTTSQONKF9"],[20,20,"1000111137CIMPSTVTSRPNNPPPOPQQOLJGC6"],[21,15,"0000111137EJNQSUVTSSPNNPOQOMOPOLIGC6"],[20,28,"1000111028EIMQSSSSTRPOOPPROMMNNMIEC7"],[25,42,"2000011026CGKLMOQRPOPQPPPRPNLMMLJEA7"],[20,62,"40000110149CHGILNMNMNNOQQRPONNNNLID8"],[18,110,"940001001157CBDGGIIKKMPPRRPOOPQPOMIE"],[17,117,"FB7201001158ABEFHIJLMNQQSRQRQRRSRPNJ"],[11,57,"82000100137BBFIILLMONPQSRTRPQOMMMJHD"],[12,284,"48BEGIJIIJKJHHILMONNMKIFIHGDB9775212"],[12,274,"7BDGIJJJJKKKIHIKMNNNLJIFHGFDB8664213"],[13,287,"9CFHIIJJKLLKJHILNNONMKIFHFFDA8664215"],[16,309,"69CDFGHIKLLKJIILNOOOMKIFGFFCA8553213"],[14,317,"58ACEGHJLMLKJIJLOOOPNLJGFFFC97553211"],[20,313,"358BDFIKLMLKJIJLOPOOOLJGFFEC87542211"],[15,302,"257ADGIKLLLKJJJLNPPOOMJGEFEC87442211"],[20,298,"2469CGJKLLKKJIJKMOONMLJFDEDB76432211"],[19,302,"1259DGIJKKKJIIIKLNONMLJFBECA75332211"],[19,277,"158CFHIJJKKKJHGGGHHHHGEC9CA954221111"],[21,273,"159BEGHIJKKJJHFEEEDEDDCA9C9853111111"],[21,273,"148ADEFGIIJIHGECCCBBBBA89B9843111111"],[19,277,"1479BBCDEFFFFECAA99899988B9742111111"],[14,289,"012123445667899999889998799742011101"],[14,282,"0243345678889988888889988A9742111101"],[15,282,"14567667889AAAAA877889988A8732111111"],[13,260,"2588999887644456677888988A8631011111"],[7,216,"3456542122132245677888988A8631011101"],[5,113,"5543111122132245677888988A8631011134"],[15,80,"543121112213224567789BA9898654444446"],[20,84,"5430211122132246677ACDFHJIHGGFFDA755"],[17,85,"7642211122132255677ADFGHIIIIHGFCA998"],[5,296,"000011112212224456688887797420011000"],[7,127,"110011112212224466688887797520123222"],[12,96,"000011112212224467689887797677888641"],[11,136,"4321111122122244666888987A7534555565"],[14,135,"5432111122133245677888988A8656666555"],[14,112,"A974211122132245677898988A8678ABDCCB"],[17,90,"97642111221332556779BCEFHGGGFECCCBBA"],[17,88,"97532111231332556779CEFGHIIIHGECCBBA"],[16,82,"87522111231332556779CFGIIIIIHGECBBB9"],[15,79,"8641212223133355677ABFHIJJIHGGEBBBA9"],[15,82,"7611212222133355687ADEGIJJIHGFDBBAA9"],[15,85,"7301212122233355688ADFGHKJJIHFDBAAA9"],[15,90,"6101212122233355688BDFHHIKJIGFDBBBA9"],[15,95,"4001222232233355687ADFHIIJJIGFDBCBB9"],[15,97,"2001222233243355688ADGHIJIJIGFDCCCB7"],[13,81,"0001222233243356689ACFHHIIIIGEDCCDA4"],[12,59,"000122223334335679ABCDFHHIHHFECDDB62"],[9,46,"000132223334435678ABCDEGHHHGFEDEE942"],[10,38,"0001323233244356689ABCEFGGHFFDEGD722"],[13,37,"000132333324435679AABCEFGGGFFFIGB612"],[20,319,"0000112369CEGIIIHEC98888997421111101"],[25,348,"000011212227CGIJKKKJIFC8997321111001"],[24,7,"000021212222259EHKMMLJGE997421111011"],[26,3,"00002121222348CFJLNOMKHD997431121111"],[27,0,"0000212222237BFJMOQQOLIDA98431121111"],[26,357,"1000212222238CGJMOQQOLHCA98542122111"],[24,354,"1000222222249DGJLOPQNKGCBA8542222111"],[24,351,"100022223237BEHJLNPPNKGBBA8543222112"],[23,351,"100022233247BEHJLNOOMJFACA8643222112"],[24,347,"100032233269CFIKLMOOMJFACB8644222112"],[23,333,"20013233359CFHJKLMNOLIE9CB8655322122"],[22,325,"20013333358BEGIJJKMNKHCACB7655322122"],[23,330,"20013334447BEHJKLKMMJGCACA8755322122"],[22,333,"200133344369CEHIKKLMJFCBCB8755332223"],[17,347,"2001333443236ADGHJKLJFBBCB8755333223"],[19,76,"5420211122132256678CEHJKLLLKJHFDA766"],[20,75,"5310212122232356679BFJLMNNMLJHFCA766"],[18,76,"530121212223235667ADFHILMMMKJHEC9776"],[16,83,"6301212122233356689CFHIJKLKJIGEB9988"],[17,88,"6101212132233355689CEHJJJKKJIGEBAA98"],[17,95,"5001222132233355689CFHJKKKKJIGEBBAA9"],[12,77,"100122213234335568ACFHJJKKJJHFDCCBB7"],[20,72,"420121212223235668BDGHJLNNNLKHEB9665"],[22,66,"42012121322323566AEHJLMNNNMNLIFC9666"],[24,60,"300121213233235669CGJMNOONMKJHEB8665"],[24,60,"300121213233235669DGJKMNNNNMJHEB8665"],[23,54,"100121213233235669DGIKMNNMLKJGDA8765"],[19,47,"000122213233235679BEHIKLMMKJIFDA8775"],[16,39,"0001222132333356688ABDEFGHIGGEC97773"],[13,50,"00012111323323556879999BCDEFECB86761"],[12,44,"00012211323333556889998ABCDEDDA87751"],[13,32,"000122113233335668899A9ABCDDDCA87741"],[13,39,"0001221132443356688999AAABCDCB988721"],[13,42,"00012211324433566889AAAAAABCCB988611"],[13,36,"00012211324433566889ABBBAAACBA888412"],[13,43,"0001221132443356689ABBBBBBCCCB988512"],[13,41,"0001222132343356689ABCCCBCDDDB999612"],[11,42,"0001222132343356689ABCCCDEEDDBAAA612"],[10,29,"0001222233343356689BBCCDFFFFECBBB722"],[20,273,"00259CEGIIHGFDA8777888888B9632011111"],[20,281,"000479CEFHHIHFDA777888888A9632011111"],[13,18,"30000110258DDGKMLNNNONORPRQOMLLKJGB6"],[11,5,"2000000025BBFKMMOPPPQOPRQSQOLKKJIFA6"],[16,28,"30000000268CIJLNOPQRRQQTRTRQMMLIJGC8"],[20,29,"1000000026CFILOQSUUUTSRSTSTQNKJIGEB6"],[27,40,"10000000237AEHLNPRTTRRSTUSTQOKIIEDB6"],[25,47,"200000002146BDHJMPQPRSSUTTUQOKIIFDB7"],[24,53,"2000000021248BEHLNNORSTUTUUROKIHFDB8"],[21,61,"30000000111369DHKKMPQRUVTUURPKIHGBB8"],[24,77,"400000001111359DFGKNORTTSVTRPLJIGCC9"],[21,78,"40000000111125AEFHMOPSUUTVURPLJHGBB8"],[22,79,"5000000011111378DHKNRUVTVWUSQLKHGD98"],[22,86,"6200000011111345ADHLPSRTVVTRPMJIHD98"],[23,79,"63000000110112358BGKOPQUVUSRNLJIHE87"],[18,65,"A7400000110113358BGLNOSVUTTSQOMLLGBA"],[28,79,"76410000110102346AGKLQUUVWXWUSPMMJD8"],[23,80,"876520001100123468EHKPQRSQPPPPQRPLGB"],[22,89,"B85431001100122458EGLPPQPPQRSTUVUQMG"],[36,124,"IB4000000100022456BEKLMLLMPTWYZaZYUO"],[34,104,"000000000000022456ACIIJFKQUWVUSPLGA4"],[24,89,"0000000000000224569BHIMPSTUVUROJE940"],[20,69,"0000000000000224569BHHLOQSUSPLHC7100"],[20,97,"2000010111111346ABGLOPOPQOOOMKLIGC84"],[21,98,"30000101111113459AFJNONPONONMJHEC975"],[23,99,"51000101111113569DEJMOOOPNONLJHGFDB9"],[27,96,"3100010112111358BEGIMPQOPOONMMLKJGE9"],[31,88,"0100021112122369FIKMMQRQQRSTTSRPMIE6"],[31,82,"110002112212357AEKMNNQRQRTVWWVTRNHA3"],[30,75,"110012112213569DGJNQPPSRSUWWWVUQKE71"],[28,66,"11001212222467BGJLORSRSRRTVVWVRMHC61"],[28,63,"11001212233468DHKNPQSSSRSUWWWSPLHB51"],[26,66,"11001212244579BGKNPQSSSRTVXWUSQLGA52"],[20,55,"1210122225568BEFJMOQQRRRSUWTRNJFC952"],[18,43,"221012222568CDEHJKNPQRQQRUTRMKHED953"],[14,31,"22101322268CDFIIJKKNPQPQRTRLLJHFC963"],[8,5,"22101322268BEGIJJKIJLNOOOQMJKIGEB853"],[12,358,"221023223589BDGIJIIIKMNOOOLKKHGDA852"],[16,359,"221023223588ACFGIIIHJLNNNOLKJHGD9852"]];
 const START_N = 25, START_TW = -3;   // il faut au moins 25 canons à −3 °C humide ou moins
 const CAN_BY_ALT = CANONS.slice().sort((a, b) => b[3] - a[3]);   // du plus haut au plus bas
 // nombre de canons prêts (s'arrête dès que « stop » est atteint, pour aller vite)
-function canonsReady(T0, RH0, G, mode, stop){
+function canonsReady(T0, RH0, G, mode, stop, i, W){
+  const s = i == null ? null : sunActive(i);
+  if(s){ let n = 0; for(let k = 0; k < CANONS.length; k++) if(canonTw(k, T0, RH0, G, mode, s, W) <= START_TW) n++; return n; }
   const order = G <= 0 ? CAN_BY_ALT : CAN_BY_ALT.slice().reverse();   // les plus froids d'abord
   let n = 0;
   for(const c of order){ if(condAt(c[3], T0, RH0, G, mode).tw <= START_TW){ n++; if(stop && n >= stop) return n; } }
   return n;
 }
-function canonsTw(T0, RH0, G, mode){ return CANONS.map(c => condAt(c[3], T0, RH0, G, mode).tw); }
+function canonsTw(T0, RH0, G, mode, i, W){ const s = i == null ? null : sunActive(i); return CANONS.map((c, k) => canonTw(k, T0, RH0, G, mode, s, W)); }
 // prévisions : air, hygrométrie, vent à 1800 m et gradient prévu (moyenne des modèles en altitude, sinon automatique)
+/* ---------- Soleil sur les canons : exposition, pente et ombre des montagnes ---------- */
+// Rayonnement solaire prévu (moyenne de l'heure précédente) au centre du domaine skiable.
+const SUN_LAT = 42.7676, SUN_LON = 0.5640;
+const SUN_K = 0.004;      // °C par W/m² de soleil direct en plus (ou en moins) par rapport à un terrain plat dégagé (estimation)
+const SUN_MAX = 3;        // effet limité à ±3 °C
+const STORE_CANSUN = "neigeSB.canonsSoleil";
+let canSunOn = loadJSON(STORE_CANSUN) !== false;   // activé par défaut
+let sunData = null;       // {src, byKey: Map("YYYY-MM-DDTHH:00" → {dni, sun})}
+function sunURLs(){
+  const v = "hourly=direct_normal_irradiance,sunshine_duration", q = `latitude=${SUN_LAT}&longitude=${SUN_LON}&${v}&timezone=Europe%2FParis&forecast_days=${FORECAST_DAYS}`;
+  return [{url: DET_API + "?" + q + "&models=best_match", src: "meilleur modèle Open-Meteo"},
+          {url: ENS_API + "?" + q + "&models=gfs_seamless", src: "moyenne de l'ensemble GFS"}];
+}
+function parseSun(json, src){
+  const h = json.hourly;
+  if(!h || !Array.isArray(h.time)) throw new Error("pas de données horaires");
+  // modèle seul : une série ; ensemble : moyenne des membres
+  const avg = name => { const keys = Object.keys(h).filter(k => k === name || k.startsWith(name + "_member"));
+    return h.time.map((t, j) => mean(keys.map(k => h[k][j]))); };
+  const dni = avg("direct_normal_irradiance"), sun = avg("sunshine_duration");
+  if(!dni.some(x => x != null)) throw new Error("pas de rayonnement");
+  return {src, byKey: new Map(h.time.map((t, j) => [t, {dni: dni[j], sun: sun[j]}]))};
+}
+async function fetchSun(){
+  let err = null;
+  for(const u of sunURLs()){
+    try{ return parseSun(await fetchJSON(u.url, 30000), u.src); }catch(e){ err = e; }
+  }
+  throw err;
+}
+// heure de Paris "YYYY-MM-DDTHH:MM" → instant (ms UTC)
+function parisMs(key){
+  const n = key.match(/\d+/g).map(Number), loc = Date.UTC(n[0], n[1] - 1, n[2], n[3], n[4] || 0);
+  const off = t => { const p = new Intl.DateTimeFormat("en-GB", {timeZone:"Europe/Paris", year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", hourCycle:"h23"}).formatToParts(new Date(t));
+    const g = x => +p.find(y => y.type === x).value; return Date.UTC(g("year"), g("month") - 1, g("day"), g("hour"), g("minute")) - t; };
+  let t = loc - off(loc); t = loc - off(t); return t;
+}
+// position du soleil (élévation et azimut depuis le nord, en degrés), formules simplifiées de l'almanach (précision ~0,1°)
+function sunPos(ms, lat = SUN_LAT, lon = SUN_LON){
+  const rad = Math.PI / 180, d = ms / 86400000 + 2440587.5 - 2451545.0;
+  const g = (357.529 + 0.98560028 * d) * rad, q = 280.459 + 0.98564736 * d;
+  const L = (q + 1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * rad, e = (23.439 - 0.00000036 * d) * rad;
+  const ra = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L)), dec = Math.asin(Math.sin(e) * Math.sin(L));
+  const gmst = (18.697374558 + 24.06570982441908 * d) % 24, ha = ((gmst * 15 + lon) * rad - ra), la = lat * rad;
+  let el = Math.asin(Math.sin(la) * Math.sin(dec) + Math.cos(la) * Math.cos(dec) * Math.cos(ha)) / rad;
+  const az = (Math.atan2(Math.sin(ha), Math.cos(ha) * Math.sin(la) - Math.tan(dec) * Math.cos(la)) / rad + 540) % 360;
+  if(el > -1) el += 1.02 / Math.tan((el + 10.3 / (el + 5.11)) * rad) / 60;   // réfraction
+  return {el, az};
+}
+const HOR_ALPH = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_-";
+function horAt(k, az){   // hauteur des montagnes vue du canon k dans la direction az
+  const h = CAN_SUN[k][2], x = ((az % 360) + 360) % 360 / 10, a = Math.floor(x) % 36, b = (a + 1) % 36, f = x - Math.floor(x);
+  return HOR_ALPH.indexOf(h[a]) * (1 - f) + HOR_ALPH.indexOf(h[b]) * f;
+}
+// le canon k reçoit-il le soleil direct (pas caché par les montagnes ni par sa propre pente) ? → cosinus d'incidence, ou 0
+function sunOnCanon(k, p){
+  if(p.el <= 0 || p.el <= horAt(k, p.az)) return 0;
+  const rad = Math.PI / 180, sl = CAN_SUN[k][0] * rad, asp = CAN_SUN[k][1] * rad, el = p.el * rad;
+  return Math.max(0, Math.cos(sl) * Math.sin(el) + Math.sin(sl) * Math.cos(el) * Math.cos(p.az * rad - asp));
+}
+// soleil à l'heure i de l'axe : position au milieu de l'heure précédente (le rayonnement est une moyenne sur cette heure)
+const sunHourCache = new Map();
+function sunHour(i){
+  if(!sunData || !axis[i]) return null;
+  const key = axis[i], r = sunData.byKey.get(key);
+  if(!r || r.dni == null) return null;
+  let p = sunHourCache.get(key);
+  if(!p){ p = sunPos(parisMs(key) - 1800000); sunHourCache.set(key, p); }
+  return {el: p.el, az: p.az, dni: r.dni, sun: r.sun};
+}
+// écart de température dû au soleil pour le canon k à l'heure i (W : vent à 1800 m, le vent mélange l'air et réduit l'effet)
+function sunDelta(k, s, W){
+  if(!s || s.el <= 0 || !(s.dni > 0)) return 0;
+  const onSlope = s.dni * sunOnCanon(k, s), flat = s.dni * Math.sin(s.el * Math.PI / 180);
+  const d = SUN_K * (onSlope - flat) / (1 + (W || 0) / 15);
+  return Math.max(-SUN_MAX, Math.min(SUN_MAX, d));
+}
+function sunActive(i){ if(!canSunOn) return null; const s = sunHour(i); return s && s.el > 0 && s.dni > 0 ? s : null; }
+// température humide d'un canon, avec l'effet du soleil (même quantité d'eau dans l'air)
+function canonTw(k, T0, RH0, G, mode, s, W){
+  const c = condAt(CANONS[k][3], T0, RH0, G, mode), dT = s ? sunDelta(k, s, W) : 0;
+  if(!dT) return c.tw;
+  const T = c.T + dT, rh = Math.min(100, c.rh * es(c.T) / es(T));
+  return wetBulb(T, Math.max(rh, 0.5), pressureAt(CANONS[k][3]));
+}
+// heures de soleil direct d'un canon pour un jour (relief seul, sans les nuages), par pas de 10 minutes
+function canonSunDay(k, dayKey){
+  let n = 0, first = null, last = null;
+  for(let m = 4 * 60; m <= 21 * 60; m += 10){
+    const key = `${dayKey}T${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+    if(sunOnCanon(k, sunPos(parisMs(key))) > 0){ n++; if(first == null) first = m; last = m; }
+  }
+  return {min: n * 10, first, last};
+}
+function sgn(v){ return temp(v); }   // écart de température, avec son signe
+function expoTxt(a){ return ["nord", "nord-est", "est", "sud-est", "sud", "sud-ouest", "ouest", "nord-ouest"][Math.round(a / 45) % 8]; }
+function hmTxt(m){ return Math.floor(m / 60) + " h " + String(m % 60).padStart(2, "0"); }
+
 function fcAt(i){
   const R = results[ALTS.findIndex(a => a.alt === SIM_REF)];
   if(!R || R.T[i] == null || R.RH[i] == null) return null;
@@ -2059,18 +2168,18 @@ const CAN_MODE = "eau";   // humidité aux autres altitudes : même quantité d'
 let canDayCache = null;
 function canDaySummary(){
   // pour chaque jour : heures où le démarrage est possible (≥ 25 canons prêts et vent sous le seuil)
-  const key = fetchedAt + "|" + settings.wind + "|" + [...selModels].join(",");
+  const key = fetchedAt + "|" + settings.wind + "|" + [...selModels].join(",") + "|" + canSunOn + "|" + !!sunData;
   if(canDayCache && canDayCache.key === key) return canDayCache.days;
   const out = days.slice(0, CAL_DAYS).map(d => {
     const hours = d.idx.map(i => { const f = fcAt(i); if(!f) return null;
-      const n = canonsReady(f.T, f.RH, f.G, CAN_MODE); return {i, n, f, wind: f.W == null || f.W <= settings.wind}; });
+      const n = canonsReady(f.T, f.RH, f.G, CAN_MODE, null, i, f.W); return {i, n, f, wind: f.W == null || f.W <= settings.wind}; });
     const go = hours.filter(h => h && h.n >= START_N && h.wind);
     return {d, hours, go, best: hours.filter(Boolean).sort((a, b) => b.n - a.n)[0] || null};
   });
   canDayCache = {key, days: out};
   return out;
 }
-function canMapSVG(tws){
+function canMapSVG(tws, lit){
   const lat0 = 42.767, kx = Math.cos(lat0 * Math.PI / 180) * 111320, ky = 110540;
   const lons = CANONS.map(c => c[2]), lats = CANONS.map(c => c[1]);
   const x0 = Math.min(...lons), x1 = Math.max(...lons), y0 = Math.min(...lats), y1 = Math.max(...lats);
@@ -2082,6 +2191,7 @@ function canMapSVG(tws){
   const m500 = 500 * kx / kx * sc;   // échelle : 500 m
   s += `<line x1="${pad}" x2="${pad + m500}" y1="${H - 8}" y2="${H - 8}" stroke="#8597ab" stroke-width="2"/><text x="${pad + m500 + 5}" y="${H - 4}" fill="#8597ab" font-size="10">500 m</text>`;
   const order = CANONS.map((c, k) => k).sort((a, b) => (tws[a] <= START_TW) - (tws[b] <= START_TW));   // les canons prêts par-dessus
+  if(lit) lit.forEach(k => { const c = CANONS[k]; s += `<circle cx="${X(c[2]).toFixed(1)}" cy="${Y(c[1]).toFixed(1)}" r="6.5" fill="none" stroke="#ffd54a" stroke-width="1.6" opacity=".9"/>`; });
   order.forEach(k => { const c = CANONS[k];
     s += `<circle data-k="${k}" cx="${X(c[2]).toFixed(1)}" cy="${Y(c[1]).toFixed(1)}" r="${can.sel === k ? 6 : 4}" fill="${col(tws[k])}" stroke="${can.sel === k ? "#e8eef5" : "#0b121a"}" stroke-width="${can.sel === k ? 2 : 1}"/>`; });
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Plan des 203 canons, colorés selon leur température humide">${s}</svg>`;
@@ -2115,18 +2225,32 @@ function renderCanons(){
   const sub = `${cap(whenTxt(axis[can.hour]))} : air ${temp(T0)} · 💧 ${rhTxt(RH0)} · vent ${num(hh.f.W, 0)}\u00a0km/h à 1800 m · variation ${gradTxt(G)} (${hh.f.Gsrc}).<br>` +
     (day.go.length ? `<b>Ce jour-là, démarrage possible : ${goH}</b> (${day.go.length}\u00a0h).` : `Ce jour-là : pas de démarrage possible` +
       (day.best ? ` (au mieux ${day.best.n} canons à ${hourOf(axis[day.best.i])}\u00a0h).` : "."));
-  const tws = canonsTw(T0, RH0, G, CAN_MODE), ready = tws.map((t, k) => t <= START_TW ? k : -1).filter(k => k >= 0);
+  document.getElementById("canSun").checked = canSunOn;
+  const sNow = canSunOn ? sunActive(can.hour) : null, lit = [];
+  let sunTxt;
+  if(!canSunOn) sunTxt = "Soleil non pris en compte.";
+  else if(!sunData) sunTxt = "☀ Prévisions de soleil indisponibles : soleil non pris en compte.";
+  else { const sh = sunHour(can.hour);
+    if(!sh || sh.el <= 0) sunTxt = "☾ Nuit : pas d'effet du soleil.";
+    else if(!sNow) sunTxt = "☁ Pas de soleil direct prévu à cette heure : pas d'effet.";
+    else { const dl = [], ds = [];
+      CANONS.forEach((c, k) => { const d = sunDelta(k, sNow, hh.f.W); if(sunOnCanon(k, sNow) > 0){ lit.push(k); dl.push(d); } else ds.push(d); });
+      const rg = a => a.length ? (Math.min(...a) === Math.max(...a) ? sgn(Math.min(...a)) : sgn(Math.min(...a)) + " à " + sgn(Math.max(...a))) : "";
+      sunTxt = `☀ Soleil (${num(sNow.el, 0)}° au-dessus de l'horizon, ${num(sNow.dni, 0)}\u00a0W/m² en direct) : <b>${lit.length} canon${lit.length > 1 ? "s" : ""} au soleil</b>` +
+        (dl.length ? ` (${rg(dl)})` : "") + `, ${ds.length} à l'ombre` + (ds.length ? ` (${rg(ds)})` : "") + "."; } }
+  const tws = canonsTw(T0, RH0, G, CAN_MODE, can.hour, hh.f.W), ready = tws.map((t, k) => t <= START_TW ? k : -1).filter(k => k >= 0);
   const n = ready.length, go = n >= START_N && windOk;
   // altitude du 25e canon le plus froid
   const sortedK = tws.map((t, k) => k).sort((a, b) => tws[a] - tws[b]), k25 = sortedK[START_N - 1];
   document.getElementById("canStart").className = "can-start " + (go ? "ok" : "no");
   document.getElementById("canStart").innerHTML = `<div class="t">${go ? "✔ Démarrage possible" : "✗ Démarrage impossible"} : ${n} canon${n > 1 ? "s" : ""} à −3\u00a0°C ou moins</div>
     <div class="d">${n >= START_N && !windOk ? `<b>Vent trop fort</b> (plus de ${settings.wind}\u00a0km/h). ` : ""}Il en faut ${START_N} sur ${CANONS.length}. Le 25e canon le plus froid
-      (n°\u00a0${CANONS[k25][0]}, ${CANONS[k25][3]}\u00a0m) est à ${temp(tws[k25])} humide.</div><div class="d">${sub}</div>`;
+      (n°\u00a0${CANONS[k25][0]}, ${CANONS[k25][3]}\u00a0m) est à ${temp(tws[k25])} humide.</div><div class="d">${sub}</div><div class="d">${sunTxt}</div>`;
   if(can.sel != null && can.sel >= CANONS.length) can.sel = null;
-  document.getElementById("canMap").innerHTML = canMapSVG(tws);
+  document.getElementById("canMap").innerHTML = canMapSVG(tws, sNow ? lit : null);
   document.getElementById("canLegend").innerHTML = `<span><i style="background:#3fc43f;border-radius:50%"></i>prêt : −3 °C humide ou moins</span>` +
     `<span><i style="background:#fab219;border-radius:50%"></i>limite : −2,5 à −3 °C</span><span><i style="background:#5b6c7e;border-radius:50%"></i>trop doux</span>` +
+    (sNow ? `<span><i style="background:none;border:2px solid #ffd54a;border-radius:50%"></i>au soleil</span>` : "") +
     `<span><i style="background:#3fc43f"></i>barres : canons prêts (vert = démarrage possible, orange = vent trop fort)</span>`;
   // numéros : on affiche d'abord la liste la plus courte (prêts, ou pas prêts quand presque tous le sont)
   const sortN = arr => arr.sort((a, b) => parseInt(a) - parseInt(b) || a.localeCompare(b));
@@ -2137,15 +2261,28 @@ function renderCanons(){
     : n > CANONS.length / 2 ? `<b>Canons prêts : ${n} sur ${CANONS.length}.</b> Pas prêts (${notNums.length}) : ${notNums.join(", ")}` +
         `<details><summary>Voir les numéros des ${n} canons prêts</summary>${nums.join(", ")}</details>`
     : `<b>Canons prêts (${n})</b> : ${nums.join(", ")}`;
-  canInfo(tws);
+  canInfo(tws, {s: sNow, W: hh.f.W, day: axis[can.hour].slice(0, 10)});
 }
 let canTws = null;
-function canInfo(tws){
+function canSunInfo(k){
+  const cs = CAN_SUN[k];
+  let t = `<br>Exposition ${expoTxt(cs[1])} (${cs[1]}°), pente ${cs[0]}°`;
+  if(!canCtx) return t;
+  const sd = canonSunDay(k, canCtx.day);
+  t += sd.min ? ` · soleil direct ce jour (montagnes et pente, sans les nuages) : ${hmTxt(sd.first)} à ${hmTxt(sd.last + 10)} (${hmTxt(sd.min).replace("\u00a0h\u00a000", "\u00a0h")})`
+    : " · pas de soleil direct ce jour (ombre des montagnes ou de la pente)";
+  if(canSunOn && canCtx.s){ const d = sunDelta(k, canCtx.s, canCtx.W);
+    t += ` · à cette heure : ${sunOnCanon(k, canCtx.s) > 0 ? "au soleil" : "à l'ombre"}, ${sgn(d)} sur l'air`; }
+  return t;
+}
+let canCtx = null;
+function canInfo(tws, ctx){
   if(tws) canTws = tws;
+  if(ctx) canCtx = ctx;
   const el = document.getElementById("canInfo");
   if(can.sel == null || !canTws){ el.textContent = "Touchez un point du plan pour voir le canon."; return; }
   const c = CANONS[can.sel], tw = canTws[can.sel];
-  el.innerHTML = `<b>Canon n° ${c[0]}</b> · ${c[3]}\u00a0m · humide <b style="color:${tw <= START_TW ? "#3fc43f" : tw <= -2.5 ? "#fab219" : "var(--ink2)"}">${temp(tw)}</b> → ${tw <= START_TW ? "prêt" : "pas prêt"}`;
+  el.innerHTML = `<b>Canon n° ${c[0]}</b> · ${c[3]}\u00a0m · humide <b style="color:${tw <= START_TW ? "#3fc43f" : tw <= -2.5 ? "#fab219" : "var(--ink2)"}">${temp(tw)}</b> → ${tw <= START_TW ? "prêt" : "pas prêt"}` + canSunInfo(can.sel);
 }
 // température de l'air maximale pour atteindre le seuil de température humide, à cette hygrométrie
 function airNeeded(rh, thr, P){
@@ -2519,7 +2656,11 @@ const INFO = {
     (toucher un carré ou un jour ici change les deux) ; les barres donnent, heure par heure, le nombre de canons prêts (vert : démarrage possible ;
     orange : assez de canons mais trop de vent). Touchez une barre pour voir le plan à cette heure. Le nombre sous chaque jour = heures
     où l'on peut démarrer.</li><li><b>Plan</b> : chaque point est un canon (vert prêt, orange limite, gris trop doux). Touchez-le pour son
-    numéro, son altitude et sa température humide. La liste donne les numéros des canons prêts.</li></ul><p>Positions : fichier des
+    numéro, son altitude et sa température humide. La liste donne les numéros des canons prêts.</li><li><b>Soleil</b> (case à cocher) :
+    pour chaque canon, la pente, l'exposition et la hauteur des montagnes autour (relief Copernicus 90 m) disent s'il est au soleil ou à
+    l'ombre, heure par heure. Avec le soleil direct prévu, la température de l'air est corrigée par rapport à un terrain plat dégagé :
+    environ <b>+0,4 °C par 100 W/m²</b> en plus (pente face au soleil), ou en moins (à l'ombre), effet réduit par le vent et limité à ±3 °C.
+    C'est une estimation, à comparer avec vos relevés. La nuit ou par ciel couvert, pas d'effet. Anneau jaune sur le plan : canon au soleil.</li></ul><p>Positions : fichier des
     canons ; altitudes : relief Copernicus (90 m). Les prévisions utilisent les modèles choisis dans Réglages.</p>`],
   simu: ["Simulateur de température humide", `<p>Réglez la température de l'air (dite « sèche ») et l'hygrométrie à 1800 m avec
     les curseurs (ou − / +) : la température humide s'affiche en haut, en couleur selon le niveau (limite, production, excellent),
@@ -2698,6 +2839,7 @@ document.getElementById("moreDays").addEventListener("click", () => { showAllDay
 document.getElementById("moreWins").addEventListener("click", () => { showAllWins = !showAllWins; renderStarts(); });
 ["simT", "simRH"].forEach(id => document.getElementById(id).addEventListener("input", e => {
   sim[{simT:"T", simRH:"RH"}[id]] = parseFloat(e.target.value); sim.src = "auto"; renderSimu(); }));
+document.getElementById("canSun").addEventListener("change", e => { canSunOn = e.target.checked; saveJSON(STORE_CANSUN, canSunOn); renderCanons(); });
 document.getElementById("secCanons").addEventListener("click", ev => {
   const db = ev.target.closest("button[data-cand]"), hb = ev.target.closest("[data-h]"), pt = ev.target.closest("[data-k]");
   if(db){ selectCalDay(+db.dataset.cand); }

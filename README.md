@@ -153,6 +153,23 @@ Onglet **Simulateur** (fonctionne sans calcul ni connexion) :
 
 Les réglages du simulateur sont gardés dans le téléphone.
 
+## Récapitulatif (graphique combiné)
+
+En tête de l'onglet **Graphiques** : toutes les prévisions à l'altitude choisie sur la même ligne de temps, en 5 bandes
+alignées, pour croiser les données :
+
+1. **Chances de produire** (bande colorée) ; en haut de chaque jour, le nombre d'heures de production probable (≥ 50 %).
+2. **Températures** : air et température humide, seuil de production (pointillé vert, zone verte = assez froid), 0 °C.
+3. **Humidité** (zone turquoise, 0–100 %, trait à 70 %) et **soleil direct** prévu (zone jaune, 0–1000 W/m²).
+4. **Vent** (ligne blanche, orange au-dessus du seuil) et **précipitations** (barres : bleu = pluie, blanc = neige à
+   l'altitude choisie).
+5. **Canons** : vert quand au moins 25 canons sont prêts (prévisions à 1800 m, avec l'effet du soleil), orange si le vent
+   l'empêche.
+
+Toucher une heure affiche toutes les valeurs (air, humide, humidité, soleil, vent, précipitations, iso 0, limite
+pluie-neige, canons prêts) et un **croisement** : ce qui empêche de produire (« trop doux » avec l'air qu'il faudrait pour
+cette humidité, « vent trop fort ») ou ce qui aide (« air sec »).
+
 ## Humidité de l'air (hygrométrie)
 
 Un air sec est favorable à la neige de culture : la température humide est plus basse que celle de l'air.

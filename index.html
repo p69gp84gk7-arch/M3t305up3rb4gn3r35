@@ -345,6 +345,7 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
 .recap-info{font-size:.92rem;line-height:1.5}
 .recap-info .why{margin-top:4px;padding:6px 10px;border-radius:8px;background:var(--card2);border-left:3px solid var(--line)}
 .recap-info .why.ok{border-left-color:#3fc43f}.recap-info .why.no{border-left-color:#ec835a}
+.sim2{margin:4px 0 10px;padding:10px 12px;border-radius:12px;border:1px solid #3f7a4a;background:#152018}
 .can-sun{display:flex;align-items:center;gap:8px;margin:8px 0 2px;font-size:.92rem;color:var(--ink2);min-height:36px}
 .can-sun input{width:20px;height:20px;accent-color:#ffd54a}
 .can-days{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;-webkit-overflow-scrolling:touch}
@@ -598,6 +599,25 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
         <div class="sl-r"><button type="button" data-sim="RH" data-d="-1" aria-label="Baisser">−</button>
           <input type="range" id="simRH" min="0" max="100" step="1"><button type="button" data-sim="RH" data-d="1" aria-label="Monter">+</button></div>
         <div class="sl-s"><span>0 %</span><span>50 %</span><span>100 %</span></div>
+      </div>
+      <label class="can-sun"><input type="checkbox" id="sim2On"> 🌡 2ᵉ mesure à une autre altitude (inversion de température)</label>
+      <div id="sim2Box" class="sim2 hidden">
+        <div class="small muted">Altitude de la 2ᵉ mesure (par exemple le thermomètre du bas de station) :</div>
+        <div class="seg-ctl sim-ref" id="sim2Alt" aria-label="Altitude de la 2e mesure"></div>
+        <div class="sl">
+          <div class="sl-h"><label for="sim2T">Air à <span class="sim2AltTxt">1450 m</span></label><b id="sim2Tv"></b></div>
+          <div class="sl-r"><button type="button" data-sim="T2" data-d="-0.5" aria-label="Baisser">−</button>
+            <input type="range" id="sim2T" min="-30" max="30" step="0.5"><button type="button" data-sim="T2" data-d="0.5" aria-label="Monter">+</button></div>
+          <div class="sl-s"><span>−30 °C</span><span>0</span><span>+30 °C</span></div>
+        </div>
+        <label class="can-sun"><input type="checkbox" id="sim2RHon"> Hygrométrie aussi mesurée à <span class="sim2AltTxt">1450 m</span></label>
+        <div class="sl hidden" id="sim2RHBox">
+          <div class="sl-h"><label for="sim2RH">Hygrométrie à <span class="sim2AltTxt">1450 m</span></label><b id="sim2RHv"></b></div>
+          <div class="sl-r"><button type="button" data-sim="RH2" data-d="-1" aria-label="Baisser">−</button>
+            <input type="range" id="sim2RH" min="0" max="100" step="1"><button type="button" data-sim="RH2" data-d="1" aria-label="Monter">+</button></div>
+          <div class="sl-s"><span>0 %</span><span>50 %</span><span>100 %</span></div>
+        </div>
+        <div class="small ink2" id="sim2Note"></div>
       </div>
       <button type="button" class="more" id="simFromFc" style="margin-top:4px">Utiliser les prévisions actuelles à <span class="simRefAlt">1800 m</span></button>
       <div class="small muted" id="simFcNote" style="margin-top:6px"></div>
@@ -1847,11 +1867,16 @@ function moistLapse(T, P){
 }
 function autoGradient(T, RH, P){ const w = Math.min(Math.max(RH, 0), 100) / 100; return (1 - w) * G_DRY + w * moistLapse(T, P); }
 // src : "auto" = calculé selon température et hygrométrie ; "prevu" = repris des prévisions (peut être une inversion)
-const sim = {T:0, RH:60, G:-0.65, src:"auto", Gfc:null, mode:"eau", ref:SIM_REF};   // ref : altitude où l'air et l'hygrométrie sont réglés   // mode : "eau" = même quantité d'eau dans l'air, "rh" = même hygrométrie partout
+const sim = {T:0, RH:60, G:-0.65, src:"auto", Gfc:null, mode:"eau", ref:SIM_REF,
+  two:false, alt2:1450, T2:0, RH2:85, rh2:false};   // 2e mesure (inversion) : air (et hygrométrie si mesurée) à une autre altitude   // ref : altitude où l'air et l'hygrométrie sont réglés   // mode : "eau" = même quantité d'eau dans l'air, "rh" = même hygrométrie partout
 (function(){ const v = loadJSON(STORE_SIMU); if(v && typeof v === "object"){
   if(isFinite(v.T)) sim.T = +v.T; if(isFinite(v.RH)) sim.RH = +v.RH; if(v.src === "prevu" && isFinite(v.Gfc)){ sim.src = "prevu"; sim.Gfc = +v.Gfc; } if(v.mode === "rh" || v.mode === "eau") sim.mode = v.mode;
-  if(SIM_ALTS.some(a => a.alt === v.ref)) sim.ref = v.ref; } })();
+  if(SIM_ALTS.some(a => a.alt === v.ref)) sim.ref = v.ref;
+  sim.two = v.two === true; if(SIM_ALTS.some(a => a.alt === v.alt2)) sim.alt2 = v.alt2;
+  if(isFinite(v.T2)) sim.T2 = +v.T2; if(isFinite(v.RH2)) sim.RH2 = +v.RH2; sim.rh2 = v.rh2 === true; } })();
 function simClamp(){ sim.T = Math.round(Math.min(30, Math.max(-30, sim.T)) * 2) / 2; sim.RH = Math.round(Math.min(100, Math.max(0, sim.RH)));
+  sim.T2 = Math.round(Math.min(30, Math.max(-30, sim.T2)) * 2) / 2; sim.RH2 = Math.round(Math.min(100, Math.max(0, sim.RH2)));
+  if(sim.alt2 === sim.ref) sim.alt2 = sim.ref === 1450 ? 1800 : 1450;
   sim.G = sim.src === "prevu" && sim.Gfc != null ? sim.Gfc : autoGradient(sim.T, sim.RH, pressureAt(sim.ref)); }
 function gradTxt(g){ return (g > 0 ? "+" : "") + num(g, 2) + "\u00a0°C / 100\u00a0m"; }
 // conditions à une altitude, à partir des réglages à 1800 m
@@ -1867,7 +1892,35 @@ function condAt(alt, T0, RH0, G, mode, ref = SIM_REF){
   }
   return {alt, T, rh, sat, tw: wetBulb(T, Math.max(rh, 0.5), P)};
 }
-function simAt(alt){ return condAt(alt, sim.T, sim.RH, sim.G, sim.mode, sim.ref); }
+// quantité de vapeur d'eau (rapport de mélange, kg/kg) et retour à la pression de vapeur
+function mixRatio(T, RH, P){ const e = RH / 100 * es(T); return 0.622 * e / (P - e); }
+function vapFromMix(r, P){ return r * P / (0.622 + r); }
+// deux mesures : les points mesurés, du plus bas au plus haut, et la variation mesurée entre eux (°C / 100 m)
+function simPts(){
+  const a = {alt: sim.ref, T: sim.T, RH: sim.RH, ref: true}, b = {alt: sim.alt2, T: sim.T2, RH: sim.RH2, ref: false};
+  if(!sim.rh2){ // humidité non mesurée : même quantité d'eau que la mesure de référence (l'air plus froid est alors plus humide)
+    const e = vapFromMix(mixRatio(a.T, a.RH, pressureAt(a.alt)), pressureAt(b.alt)); b.RH = Math.min(100, e / es(b.T) * 100); }
+  const lo = a.alt < b.alt ? a : b, hi = a.alt < b.alt ? b : a;
+  return {lo, hi, Gm: (hi.T - lo.T) / (hi.alt - lo.alt) * 100};
+}
+function simAt(alt){
+  if(!sim.two) return condAt(alt, sim.T, sim.RH, sim.G, sim.mode, sim.ref);
+  const {lo, hi, Gm} = simPts(), P = pressureAt(alt);
+  let T, rh;
+  if(alt >= lo.alt && alt <= hi.alt){   // entre les deux mesures : température et quantité d'eau (ou hygrométrie) interpolées
+    const f = (alt - lo.alt) / (hi.alt - lo.alt); T = lo.T + (hi.T - lo.T) * f;
+    if(sim.mode === "rh") rh = lo.RH + (hi.RH - lo.RH) * f;
+    else { const r = mixRatio(lo.T, lo.RH, pressureAt(lo.alt)) * (1 - f) + mixRatio(hi.T, hi.RH, pressureAt(hi.alt)) * f; rh = vapFromMix(r, P) / es(T) * 100; }
+  } else {
+    // au-dessus : variation automatique (ou prévue) depuis la mesure du haut ;
+    // au-dessous : variation mesurée prolongée si la température baisse avec l'altitude ; en inversion, on ne sait pas jusqu'où
+    // elle descend : température gardée égale à la mesure du bas (estimation prudente, le fond de vallée peut être plus froid)
+    const p = alt > hi.alt ? hi : lo, G = alt > hi.alt ? (sim.src === "prevu" && sim.Gfc != null ? sim.Gfc : autoGradient(hi.T, hi.RH, pressureAt(hi.alt))) : Math.min(Gm, 0);
+    const c = condAt(alt, p.T, p.RH, G, sim.mode, p.alt); T = c.T; rh = c.rh;
+  }
+  let sat = false; if(rh > 100){ rh = 100; sat = true; }
+  return {alt, T, rh, sat, tw: wetBulb(T, Math.max(rh, 0.5), P), est: alt < lo.alt};
+}
 
 /* ---------- Canons : démarrage de l'installation ---------- */
 // 203 canons numérotés (fichier canons.kmz fourni le 27/11/2026) : [numéro, latitude, longitude, altitude du terrain en m]
@@ -2332,10 +2385,11 @@ function simSVG(){
   let s = `<polygon points="0,${H} 0,${r(3) + 26} 12,${r(3) + 4} 24,${r(3) - 14} 40,${r(2) + 22} 48,${r(2)} 62,${r(1) + 18} 72,${r(1)} 88,${r(0) + 26} 102,${r(0) - 4} 112,${r(0) - 34} 124,${r(0) - 20} 150,${r(0) + 16} 196,${r(1) - 10} 260,${r(2) + 10} ${W},${r(3) - 6} ${W},${H}" fill="#1a2632" stroke="#3a4b5d"/>`;
   s += `<polygon points="104,${r(0) - 10} 112,${r(0) - 34} 124,${r(0) - 20} 120,${r(0) - 12} 112,${r(0) - 22} 107,${r(0) - 8}" fill="#e8eef5" opacity=".85"/>`;
   SIM_ALTS.forEach((a, k) => { const c = simAt(a.alt), x = xs[k], y = r(k), tx = x + (k === 0 ? 24 : 16), col = twColor(c.tw), lv = level(c.tw);
-    const isRef = a.alt === sim.ref;
+    const isRef = a.alt === sim.ref, is2 = sim.two && a.alt === sim.alt2;
+    if(is2) s += `<rect x="${tx - 6}" y="${y - 30}" width="${W - tx + 4}" height="60" rx="8" fill="#1d2a1f" stroke="#3f7a4a"/>`;
     if(isRef) s += `<rect x="${tx - 6}" y="${y - 30}" width="${W - tx + 4}" height="60" rx="8" fill="#14273b" stroke="#2a4a6b"/>`;
-    s += `<circle cx="${x}" cy="${y}" r="${isRef ? 8.5 : 7}" fill="${col}" stroke="${isRef ? "#e8eef5" : "#0b121a"}" stroke-width="2"/>`;
-    s += `<text x="${tx}" y="${y - 13}" font-size="12.5"><tspan fill="#e8eef5" font-weight="800">${a.alt} m</tspan><tspan fill="#8597ab"> · ${a.name}${isRef ? " · référence" : ""}</tspan></text>`;
+    s += `<circle cx="${x}" cy="${y}" r="${isRef || is2 ? 8.5 : 7}" fill="${col}" stroke="${isRef || is2 ? "#e8eef5" : "#0b121a"}" stroke-width="2"/>`;
+    s += `<text x="${tx}" y="${y - 13}" font-size="12.5"><tspan fill="#e8eef5" font-weight="800">${a.alt} m</tspan><tspan fill="#8597ab"> · ${a.name}${isRef ? " · référence" : is2 ? " · 2ᵉ mesure" : c.est ? " · estimé" : ""}</tspan></text>`;
     s += `<text x="${tx}" y="${y + 6}"><tspan fill="${col}" font-size="19" font-weight="900">${temp(c.tw)}</tspan><tspan fill="${col}" font-size="11.5" font-weight="700"> humide · ${lv.txt}</tspan></text>`;
     s += `<text x="${tx}" y="${y + 22}" fill="#b3c1d0" font-size="11.5">air ${temp(c.T)} · 💧 ${rhTxt(c.rh)}${c.sat ? " · saturé (nuage)" : ""}</text>`; });
   return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Montagne de profil : 2100, 1800, 1450 et 650 m, avec leurs températures">${s}</svg>`;
@@ -2354,7 +2408,24 @@ function renderSimu(){
   document.getElementById("simNeed").innerHTML = `Écart air → humide : ${num(sim.T - ref.tw)}\u00a0°C. Avec ${rhTxt(sim.RH)} d'humidité, il faut un air à
     <b>${temp(need)}</b> ou moins pour atteindre le seuil de ${temp(thr).replace("+", "")} humide.`;
   document.getElementById("simSvg").innerHTML = simSVG();
-  document.getElementById("simGrad").innerHTML = `Variation de la température avec l'altitude : <b>${gradTxt(sim.G)}</b><br>` +
+  document.getElementById("sim2On").checked = sim.two; document.getElementById("sim2Box").classList.toggle("hidden", !sim.two);
+  if(sim.two){
+    document.getElementById("sim2Alt").innerHTML = SIM_ALTS.slice().reverse().map(a => `<button type="button" data-sim2alt="${a.alt}" aria-pressed="${a.alt === sim.alt2}"${a.alt === sim.ref ? " disabled" : ""}>${a.alt}\u00a0m<small>${a.alt === sim.ref ? "référence" : a.name}</small></button>`).join("");
+    document.querySelectorAll(".sim2AltTxt").forEach(el => el.textContent = sim.alt2 + "\u00a0m");
+    document.getElementById("sim2T").value = sim.T2; document.getElementById("sim2Tv").textContent = temp(sim.T2);
+    document.getElementById("sim2RHon").checked = sim.rh2; document.getElementById("sim2RHBox").classList.toggle("hidden", !sim.rh2);
+    document.getElementById("sim2RH").value = sim.RH2; document.getElementById("sim2RHv").textContent = rhTxt(sim.RH2);
+    const {lo, hi} = simPts(), b = simAt(sim.alt2);
+    document.getElementById("sim2Note").innerHTML = sim.rh2 ? "" : `Humidité à ${sim.alt2}\u00a0m calculée : <b>${rhTxt(b.rh)}</b>${b.sat ? " (saturé : brouillard probable)" : ""} — même quantité d'eau qu'à ${sim.ref}\u00a0m. Cochez si vous la mesurez.`;
+  }
+  const two = sim.two ? simPts() : null;
+  document.getElementById("simGrad").innerHTML = two
+    ? `Variation <b>mesurée</b> entre ${two.lo.alt} et ${two.hi.alt}\u00a0m : <b>${gradTxt(two.Gm)}</b>` +
+      (two.Gm > 0.05 ? ` → <b style="color:#ec835a">inversion</b> : plus froid en bas.` : two.Gm < -0.05 ? "." : " (isotherme).") +
+      `<br><span class="small ink2">Entre les deux mesures : température et ${sim.mode === "rh" ? "hygrométrie" : "quantité d'eau"} interpolées. Au-dessus de ${two.hi.alt}\u00a0m : variation ${sim.src === "prevu" ? "prévue" : "automatique"} (${gradTxt(sim.src === "prevu" && sim.Gfc != null ? sim.Gfc : autoGradient(two.hi.T, two.hi.RH, pressureAt(two.hi.alt)))}).` +
+      (two.lo.alt > 650 ? (two.Gm > 0 ? ` Au-dessous de ${two.lo.alt}\u00a0m : on ne sait pas jusqu'où descend l'inversion ; la température y est gardée égale à celle de ${two.lo.alt}\u00a0m (estimation : le fond de vallée peut être encore plus froid).`
+        : ` Au-dessous de ${two.lo.alt}\u00a0m : variation mesurée prolongée (estimation).`) : "") + `</span>`
+    : `Variation de la température avec l'altitude : <b>${gradTxt(sim.G)}</b><br>` +
     (sim.src === "prevu"
       ? `<span class="small ink2">prévue par les modèles météo pour l'heure en cours.</span> <button type="button" class="link" id="simAuto">Revenir au calcul automatique</button>`
       : `<span class="small ink2">calculée automatiquement selon la température et l'hygrométrie (air humide : environ −0,5 à −0,8 ; air sec : jusqu'à −0,98).</span>`);
@@ -2363,7 +2434,12 @@ function renderSimu(){
   const d = sim.G * (650 - 1800) / 100, rf = sim.ref + "\u00a0m";
   const cmp = SIM_ALTS.filter(a => a.alt !== sim.ref && (a.alt === 650 || a.alt === 2100 || (sim.ref === 2100 && a.alt === 1450) || (sim.ref === 650 && a.alt === 1450)))
     .map(a => { const x = sim.G * (a.alt - sim.ref) / 100; return `${num(Math.abs(x))}\u00a0°C de ${x > 0 ? "plus" : "moins"} à ${a.alt}\u00a0m`; });
-  document.getElementById("simExplain").innerHTML = sim.G < -0.05
+  document.getElementById("simExplain").innerHTML = two
+    ? (() => { const a = simAt(two.lo.alt), b = simAt(two.hi.alt);
+        return `Humidité : <b>${rhTxt(a.rh)}</b> à ${two.lo.alt}\u00a0m${a.sat ? " (saturé)" : ""}, <b>${rhTxt(b.rh)}</b> à ${two.hi.alt}\u00a0m. ` +
+          (two.Gm > 0.05 ? `En inversion, l'air froid du bas est souvent humide, jusqu'au brouillard, et l'air plus doux au-dessus est plus sec : sa température humide peut rester basse malgré un air plus doux.`
+            : `Pas d'inversion entre les deux mesures.`); })()
+    : sim.G < -0.05
     ? `Par rapport à ${rf} : il fait ${cmp.join(" et ")}.` +
       (sim.src === "auto" ? ` En cas d'inversion (air froid bloqué dans la vallée, par temps calme en hiver), la vallée peut au contraire être plus froide : utilisez alors les prévisions actuelles.` : "")
     : sim.G > 0.05 ? `<b>Inversion de température</b> : il fait plus froid en bas qu'en haut (${num(Math.abs(d))}\u00a0°C de moins à 650\u00a0m qu'à 1800\u00a0m). Cela arrive en hiver par temps calme et anticyclonique, quand l'air froid s'accumule dans la vallée.`
@@ -2372,21 +2448,23 @@ function renderSimu(){
   const b = document.getElementById("simFromFc"); b.disabled = !fc;
   document.getElementById("simFcNote").textContent = fc ? `Prévision à ${rf} pour ${whenTxt(axis[0])} : air ${temp(fc.T)}, humidité ${rhTxt(fc.RH)}` +
     (fc.derived ? " (calculées depuis 1800\u00a0m, la vallée n'est pas un point de prévision)" : "") +
-    (fc.G != null ? `, variation prévue ${gradTxt(fc.G)} (moyenne de ${fc.n} modèle${fc.n > 1 ? "s" : ""}).` : ".") : "Appuyez sur « Calculer » pour pouvoir reprendre les prévisions.";
+    (fc.G != null ? `, variation prévue ${gradTxt(fc.G)} (moyenne de ${fc.n} modèle${fc.n > 1 ? "s" : ""}).` : ".") +
+    (sim.two ? (() => { const f2 = simForecast(sim.alt2); return f2 ? ` À ${sim.alt2}\u00a0m : air ${temp(f2.T)}, humidité ${rhTxt(f2.RH)}${f2.derived ? " (calculées)" : ""}.` : ""; })() : "")
+    : "Appuyez sur « Calculer » pour pouvoir reprendre les prévisions.";
   saveJSON(STORE_SIMU, sim);
 }
 // prévisions actuelles à 1800 m (et gradient prévu par les modèles qui donnent les températures en altitude)
-function simForecast(){
-  // à l'altitude de référence choisie : point de prévision s'il existe (1450, 1800, 2100 m), sinon calculé depuis 1800 m
+function simForecast(alt = sim.ref){
+  // à l'altitude demandée : point de prévision s'il existe (1450, 1800, 2100 m), sinon calculé depuis 1800 m
   if(!results) return null;
   const gs = isoModels.map(m => { const j = m.time.indexOf(axis[0]); return j >= 0 ? m.grad[j] : null; }).filter(g => g != null);
   const G = gs.length ? mean(gs) : null;
-  let i = ALTS.findIndex(a => a.alt === sim.ref), derived = false;
+  let i = ALTS.findIndex(a => a.alt === alt), derived = false;
   if(i < 0){ i = ALTS.findIndex(a => a.alt === SIM_REF); derived = true; }
   const R = results[i];
   if(!R || R.T[0] == null || R.RH[0] == null) return null;
   let T = R.T[0], RH = R.RH[0];
-  if(derived){ const c = condAt(sim.ref, T, RH, G != null ? G : autoGradient(T, RH, pressureAt(SIM_REF)), "eau"); T = Math.round(c.T * 2) / 2; RH = c.rh; }
+  if(derived){ const c = condAt(alt, T, RH, G != null ? G : autoGradient(T, RH, pressureAt(SIM_REF)), "eau"); T = Math.round(c.T * 2) / 2; RH = c.rh; }
   return {T, RH, G, n: gs.length, derived};
 }
 
@@ -2953,7 +3031,12 @@ const INFO = {
     qu'en haut. Le calcul automatique ne peut pas le deviner : « Utiliser les prévisions actuelles » reprend la variation prévue par
     les modèles météo, inversion comprise.</li>
     <li><b>Même quantité d'eau dans l'air</b> (conseillé) : l'hygrométrie monte quand l'air se refroidit et baisse quand il se
-    réchauffe ; à 100 %, l'air est saturé (nuage ou brouillard). <b>Même hygrométrie partout</b> : plus simple, moins réaliste.</li></ul>`],
+    réchauffe ; à 100 %, l'air est saturé (nuage ou brouillard). <b>Même hygrométrie partout</b> : plus simple, moins réaliste.</li></ul><p><b>2ᵉ mesure (inversion)</b> : cochez « 2ᵉ mesure » et entrez l'air (et, si vous l'avez, l'hygrométrie) lu à une autre altitude,
+    par exemple le thermomètre du bas de station. Le profil passe alors par les deux mesures : entre elles, la température et la quantité
+    d'eau sont interpolées, ce qui montre une inversion (plus froid en bas) et l'air plus sec au-dessus. Sans hygrométrie mesurée, on garde
+    la même quantité d'eau qu'à la référence (l'air froid du bas est alors plus humide). Au-dessus de la mesure la plus haute : variation
+    automatique. Au-dessous de la plus basse : variation mesurée prolongée, sauf en inversion où la température est gardée égale (on ne sait
+    pas jusqu'où descend l'air froid).</p>`],
   missing: ["Modèles indisponibles", `<p>Modèles qui n'ont pas répondu à ce calcul : panne du service, quota gratuit dépassé
     (10 000 demandes par jour et par connexion) ou pas de données pour Superbagnères. Les autres modèles sont utilisés normalement.
     Réessayez plus tard.</p>`]
@@ -3113,8 +3196,12 @@ document.getElementById("calDays").addEventListener("click", ev => {
 });
 document.getElementById("moreDays").addEventListener("click", () => { showAllDays = !showAllDays; renderDays(); });
 document.getElementById("moreWins").addEventListener("click", () => { showAllWins = !showAllWins; renderStarts(); });
-["simT", "simRH"].forEach(id => document.getElementById(id).addEventListener("input", e => {
-  sim[{simT:"T", simRH:"RH"}[id]] = parseFloat(e.target.value); sim.src = "auto"; renderSimu(); }));
+["simT", "simRH", "sim2T", "sim2RH"].forEach(id => document.getElementById(id).addEventListener("input", e => {
+  sim[{simT:"T", simRH:"RH", sim2T:"T2", sim2RH:"RH2"}[id]] = parseFloat(e.target.value); sim.src = "auto"; renderSimu(); }));
+document.getElementById("sim2On").addEventListener("change", e => { sim.two = e.target.checked; renderSimu(); });
+document.getElementById("sim2RHon").addEventListener("change", e => {
+  if(e.target.checked && !sim.rh2) sim.RH2 = Math.round(simAt(sim.alt2).rh);   // part de la valeur calculée
+  sim.rh2 = e.target.checked; renderSimu(); });
 document.getElementById("canSun").addEventListener("change", e => { canSunOn = e.target.checked; saveJSON(STORE_CANSUN, canSunOn); renderCanons(); });
 document.getElementById("secCanons").addEventListener("click", ev => {
   const db = ev.target.closest("button[data-cand]"), hb = ev.target.closest("[data-h]"), pt = ev.target.closest("[data-k]");
@@ -3126,11 +3213,14 @@ document.getElementById("tab-simu").addEventListener("click", ev => {
   const st = ev.target.closest("button[data-sim]"), md = ev.target.closest("button[data-simm]");
   if(st){ sim[st.dataset.sim] += parseFloat(st.dataset.d); sim.src = "auto"; renderSimu(); }
   else if(ev.target.closest("#simAuto")){ sim.src = "auto"; renderSimu(); }
+  else if(ev.target.closest("button[data-sim2alt]")){ sim.alt2 = +ev.target.closest("button[data-sim2alt]").dataset.sim2alt; renderSimu(); }
   else if(ev.target.closest("[data-simref]")){
     // les valeurs réglées (air, hygrométrie) sont gardées : elles valent désormais pour la nouvelle altitude de référence
     sim.ref = +ev.target.closest("[data-simref]").dataset.simref; renderSimu(); }
   else if(md){ sim.mode = md.dataset.simm; renderSimu(); }
-  else if(ev.target.closest("#simFromFc")){ const fc = simForecast(); if(fc){ sim.T = fc.T; sim.RH = fc.RH; if(fc.G != null){ sim.src = "prevu"; sim.Gfc = fc.G; } else sim.src = "auto"; renderSimu(); } }
+  else if(ev.target.closest("#simFromFc")){ const fc = simForecast(); if(fc){ sim.T = fc.T; sim.RH = fc.RH; if(fc.G != null){ sim.src = "prevu"; sim.Gfc = fc.G; } else sim.src = "auto";
+    if(sim.two){ const f2 = simForecast(sim.alt2); if(f2){ sim.T2 = Math.round(f2.T * 2) / 2; sim.RH2 = Math.round(f2.RH); sim.rh2 = true; } }
+    renderSimu(); } }
 });
 document.getElementById("secIso").addEventListener("click", ev => {
   const b = ev.target.closest("button[data-iso]"); if(!b) return;

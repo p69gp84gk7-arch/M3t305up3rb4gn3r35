@@ -151,6 +151,21 @@ Onglet **Simulateur** (fonctionne sans calcul ni connexion) :
   - Le gradient prévu est calculé par régression linéaire des températures des niveaux de pression situés entre
     environ 300 et 2800 m (modèles AROME, ARPEGE, ECMWF, ICON, GFS, UKMO), moyenne des modèles.
 
+### 2ᵉ mesure : inversion de température
+
+Par temps calme et anticyclonique, l'air froid et souvent humide (brouillard) reste en bas, et l'air au-dessus est plus doux et
+plus sec : un seul gradient en ligne droite ne suffit plus. Case **« 2ᵉ mesure à une autre altitude »** :
+
+- choisir l'altitude de la 2ᵉ mesure (par exemple **1450 m**, le thermomètre du bas de station) et régler son **air** ;
+  l'**hygrométrie** de ce point est facultative (case « aussi mesurée ») : sinon, on garde la même quantité d'eau qu'à la
+  référence, ce qui rend l'air froid du bas plus humide ;
+- **entre les deux mesures** : température et quantité d'eau (ou hygrométrie, selon le mode) interpolées ; la variation
+  mesurée est affichée, avec « inversion » quand il fait plus froid en bas ;
+- **au-dessus** de la mesure la plus haute : variation automatique (ou prévue) ;
+- **au-dessous** de la plus basse : variation mesurée prolongée ; en inversion, température gardée égale (on ne sait pas
+  jusqu'où descend l'air froid ; le fond de vallée peut être encore plus froid). Ces points sont marqués « estimé ».
+- « Utiliser les prévisions actuelles » remplit aussi la 2ᵉ mesure.
+
 Les réglages du simulateur sont gardés dans le téléphone.
 
 ## Récapitulatif (graphique combiné)

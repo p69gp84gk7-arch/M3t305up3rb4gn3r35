@@ -149,7 +149,11 @@ Onglet **Simulateur** (fonctionne sans calcul ni connexion) :
   - **Humidité aux autres altitudes** : « même quantité d'eau dans l'air » (conseillé : rapport de mélange constant,
     l'hygrométrie suit la température et la pression, plafonnée à 100 % = saturé) ou « même hygrométrie partout ».
   - Le gradient prévu est calculé par régression linéaire des températures des niveaux de pression situés entre
-    environ 300 et 2800 m (modèles AROME, ARPEGE, ECMWF, ICON, GFS, UKMO), moyenne des modèles.
+    1200 et 3300 m (modèles AROME, ARPEGE, ECMWF, ICON, GFS, UKMO), moyenne des modèles. Les niveaux plus bas
+    (1000 et 925 hPa, vers 200 et 850 m) sont ignorés : ils sont sous le relief des modèles autour de Superbagnères et leurs
+    valeurs sont extrapolées avec un gradient standard (même humidité qu'au niveau du dessus), ce qui masquait les
+    inversions. Sur les prévisions du 28/11, le gradient moyen passe ainsi d'environ −0,55/−0,66 à −0,29/−0,47 °C/100 m
+    selon les modèles.
 
 ### 2ᵉ mesure : inversion de température
 
@@ -221,6 +225,21 @@ niveaux 1000, 925, 850, 800, 700, 600 et 500 hPa au-dessus du plateau. L'iso 0 e
 température passe à 0 °C ; la limite pluie-neige est la plus haute altitude où la température humide passe à +1 °C
 (interpolation entre niveaux). Vérifié le 25/11/2026 : l'iso 0 calculé est à moins de 100 m de l'iso 0 fourni par
 GFS et ICON ; la limite pluie-neige est à ±250 m de celle d'ICON-EU. AROME HD ne fournit pas ces niveaux.
+
+## Inversions : vallée ↔ station
+
+Les prévisions des 6 altitudes sont ramenées à l'altitude demandée par Open-Meteo avec un gradient standard : elles ne
+peuvent pas montrer d'inversion. Le bloc **Inversions** (onglet Graphiques) utilise le modèle le plus fin, **AROME HD**
+(1,3 km ; sinon AROME 2,5 km), **sans correction d'altitude** (`elevation=nan`), à 5 points du fond de la vallée de Luchon au
+haut de la station (altitudes du relief du modèle : environ 680, 880, 1730 et 1870 m). 1 appel de plus, prévision à environ
+2 jours.
+
+- Une ligne par point ; **zone orange** = inversion (la température monte d'au moins 0,5 °C en montant).
+- Détail d'une heure : température et humidité à chaque point, variation de la vallée à la station.
+- **Simulateur** : message « inversion prévue » pour l'heure en cours, avec le bouton « Simuler avec la vallée en 2ᵉ mesure »
+  (prévision à la référence + fond de vallée AROME HD en 2ᵉ mesure) ; « Utiliser les prévisions » à 650 m prend le fond de
+  vallée AROME HD au lieu d'un calcul depuis 1800 m.
+- **Récapitulatif** : « inversion prévue » apparaît dans les raisons de l'heure touchée.
 
 ## Vent et précipitations
 

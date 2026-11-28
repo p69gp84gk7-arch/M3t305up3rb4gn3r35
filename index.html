@@ -345,6 +345,8 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
 .recap-info{font-size:.92rem;line-height:1.5}
 .recap-info .why{margin-top:4px;padding:6px 10px;border-radius:8px;background:var(--card2);border-left:3px solid var(--line)}
 .recap-info .why.ok{border-left-color:#3fc43f}.recap-info .why.no{border-left-color:#ec835a}
+.sim-inv{margin-top:8px;padding:8px 10px;border-radius:10px;border-left:3px solid var(--line);background:var(--card2);font-size:.88rem;color:var(--ink2)}
+.sim-inv.on{border-left-color:#ec835a}
 .sim2{margin:4px 0 10px;padding:10px 12px;border-radius:12px;border:1px solid #3f7a4a;background:#152018}
 .can-sun{display:flex;align-items:center;gap:8px;margin:8px 0 2px;font-size:.92rem;color:var(--ink2);min-height:36px}
 .can-sun input{width:20px;height:20px;accent-color:#ffd54a}
@@ -538,6 +540,18 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
         <div id="windInfo"></div>
         <div class="legend" id="windLegend"></div>
       </section>
+
+      <section id="secInv">
+        <h2>Inversions : vallée ↔ station <button type="button" class="info" data-info="inv" aria-label="Explication" aria-expanded="false">i</button></h2>
+        <div class="small muted">Température prévue du fond de la vallée jusqu'au haut de la station par le modèle le plus fin, sans correction
+          d'altitude. Zone orange : <b>inversion</b> (il fait plus froid en bas qu'au-dessus). Prévision à 2 jours environ.</div>
+        <div class="chart-wrap">
+          <svg class="chart-axis" id="invAxis" width="34" height="220" aria-hidden="true"></svg>
+          <div class="chart-scroll" id="invScroll"></div>
+        </div>
+        <div id="invInfo"></div>
+        <div class="legend" id="invLegend"></div>
+      </section>
     </div>
   </div>
 
@@ -623,6 +637,7 @@ body.simple{padding-bottom:env(safe-area-inset-bottom)}
       </div>
       <button type="button" class="more" id="simFromFc" style="margin-top:4px">Utiliser les prévisions actuelles à <span class="simRefAlt">1800 m</span></button>
       <div class="small muted" id="simFcNote" style="margin-top:6px"></div>
+      <div id="simInv" class="sim-inv hidden"></div>
     </section>
 
     <section>
@@ -977,8 +992,10 @@ function parseIso(json, meta){
     });
     prof.sort((a, b) => a.z - b.z); profw.sort((a, b) => a.z - b.z);
     iso0[j] = crossUp(prof, 0); snow[j] = crossUp(profw, SNOW_TW);
-    // gradient vertical entre environ 500 et 2700 m (régression linéaire), en °C par 100 m
-    const pts = prof.filter(p => p.z >= 300 && p.z <= 2800);
+    // gradient vertical (régression linéaire), en °C par 100 m, sur les niveaux entre 1200 et 3300 m.
+    // Plus bas, les niveaux sont sous le relief des modèles autour de Superbagnères : leurs valeurs sont extrapolées
+    // avec un gradient standard (même humidité qu'au niveau du dessus), ce qui masquait les inversions.
+    const pts = prof.filter(p => p.z >= INV_LEVEL_MIN && p.z <= 3300);
     if(pts.length >= 2){
       const mz = mean(pts.map(p => p.z)), mt = mean(pts.map(p => p.v));
       const den = pts.reduce((a, p) => a + (p.z - mz) ** 2, 0);
@@ -988,6 +1005,57 @@ function parseIso(json, meta){
   return Object.assign({}, meta, {kind:"iso", time:h.time, iso0, snow, grad, pr: h.precipitation || []});
 }
 let isoModels = [];   // modèles disponibles pour l'iso 0
+const INV_LEVEL_MIN = 1200;   // niveaux de pression plus bas ignorés pour le gradient (sous le relief des modèles)
+
+/* ---------- Inversions prévues : vallée ↔ station, sans correction d'altitude (AROME HD) ---------- */
+// Points du modèle le plus fin, tels quels (« elevation=nan » : pas de correction d'altitude, relief du modèle).
+// Entre ces points, les écarts de température sont ceux que le modèle calcule vraiment : inversions comprises.
+const INV_PTS = [
+  {lat:42.7895, lon:0.5935, name:"vallée (Luchon)"},
+  {lat:42.7780, lon:0.5850, name:"bas de pente"},
+  {lat:42.7556, lon:0.5747, name:"bas de station"},
+  {lat:42.7576, lon:0.5747, name:"plateau"},
+  {lat:42.7395, lon:0.5410, name:"haut de station"}
+];
+const INV_MODELS = [{id:"meteofrance_arome_france_hd", label:"AROME HD (1,3 km)"}, {id:"meteofrance_arome_france", label:"AROME (2,5 km)"}];
+const INV_STEP = 0.5;   // °C : une hausse de température d'au moins 0,5 °C en montant = inversion
+let invData = null;     // {label, pts:[{elev, name}], byKey: Map(heure → {T:[], RH:[]})}
+function invURL(model){
+  return DET_API + "?" + ["latitude=" + INV_PTS.map(p => p.lat).join(","), "longitude=" + INV_PTS.map(p => p.lon).join(","),
+    "elevation=" + INV_PTS.map(() => "nan").join(","), "hourly=temperature_2m,relative_humidity_2m", "models=" + model,
+    "timezone=Europe%2FParis", "forecast_days=3"].join("&");
+}
+function parseInv(json, label){
+  const arr = [].concat(json);
+  if(arr.length !== INV_PTS.length || !arr[0].hourly) throw new Error("réponse incomplète");
+  // points distincts (deux points peuvent tomber dans la même maille), du plus bas au plus haut
+  const seen = new Map(), idx = [];
+  arr.forEach((p, k) => { if(p.elevation == null) return; if(seen.has(p.elevation)){ seen.get(p.elevation).push(INV_PTS[k].name); return; } seen.set(p.elevation, [INV_PTS[k].name]); idx.push(k); });
+  idx.sort((a, b) => arr[a].elevation - arr[b].elevation);
+  if(idx.length < 2) throw new Error("points confondus");
+  const byKey = new Map();
+  arr[0].hourly.time.forEach((t, j) => {
+    const T = idx.map(k => arr[k].hourly.temperature_2m[j]), RH = idx.map(k => arr[k].hourly.relative_humidity_2m[j]);
+    if(T.every(v => v != null)) byKey.set(t, {T, RH});
+  });
+  if(!byKey.size) throw new Error("pas de données");
+  return {label, pts: idx.map(k => ({elev: Math.round(arr[k].elevation), name: seen.get(arr[k].elevation).join(" / ")})), byKey};
+}
+async function fetchInv(){
+  let err = null;
+  for(const m of INV_MODELS){ try{ return parseInv(await fetchJSON(invURL(m.id), 30000), m.label); }catch(e){ err = e; } }
+  throw err;
+}
+// inversion à l'heure i : plus forte hausse de température en montant, et variation entre le fond de vallée et la station
+function invAt(i){
+  const r = invData && axis[i] ? invData.byKey.get(axis[i]) : null;
+  if(!r) return null;
+  const P = invData.pts, st = P.reduce((b, p, k) => Math.abs(p.elev - 1800) < Math.abs(P[b].elev - 1800) ? k : b, 0);
+  let up = 0, top = null;
+  for(let a = 0; a < P.length; a++) for(let b = a + 1; b < P.length; b++){ const d = r.T[b] - r.T[a]; if(d > up){ up = d; top = P[b].elev; } }
+  const G = (r.T[st] - r.T[0]) / (P[st].elev - P[0].elev) * 100;
+  return {T: r.T, RH: r.RH, up, top, inv: up >= INV_STEP, G, st};
+}
 
 function parseModel(json, meta, kind){
   const arr = Array.isArray(json) ? json : [json];
@@ -1027,6 +1095,7 @@ async function calculate(){
   ];
   let done = 0;
   const sunP = fetchSun().catch(e => { console.info("Rayonnement solaire indisponible :", e.message); return null; });
+  const invP = fetchInv().catch(e => { console.info("Profil vallée-station indisponible :", e.message); return null; });
   const settled = await Promise.allSettled(jobs.map(j =>
     fetchJSON(j.url, 30000).then(json => j.kind === "iso" ? parseIso(json, j.meta) : parseModel(json, j.meta, j.kind)).finally(() => {
       done++; setStatus(`Prévisions reçues : ${done} / ${jobs.length}…`);
@@ -1055,7 +1124,7 @@ async function calculate(){
     ok.push(m);
   });
   models = ok; missing = miss; isoModels = isoOk;
-  sunData = await sunP; sunHourCache.clear();
+  sunData = await sunP; sunHourCache.clear(); invData = await invP;
   // axe horaire : union des heures, à partir de l'heure en cours
   const set = new Set();
   models.forEach(m => m.points[REF_IDX].time.forEach(t => { if(t >= nowKey) set.add(t); }));
@@ -1407,7 +1476,7 @@ function render(){
   renderRecap();
   renderSimple();
   if(curTab === "simu") renderSimu();
-  renderBasis(); renderDays(); renderStarts(); renderChart(); renderHum(); renderSpaghetti(); renderIso(); renderWind(); renderCalendar(); renderCanons(); renderAltTable(); renderHumTable(); renderModelTable(); renderMissing();
+  renderBasis(); renderDays(); renderStarts(); renderChart(); renderHum(); renderSpaghetti(); renderIso(); renderWind(); renderInv(); renderCalendar(); renderCanons(); renderAltTable(); renderHumTable(); renderModelTable(); renderMissing();
 }
 
 /* Jour par jour : schéma de la pente avec 3 altitudes */
@@ -2492,10 +2561,14 @@ function renderSimu(){
   const fc = simForecast();
   const b = document.getElementById("simFromFc"); b.disabled = !fc;
   document.getElementById("simFcNote").textContent = fc ? `Prévision à ${rf} pour ${whenTxt(axis[0])} : air ${temp(fc.T)}, humidité ${rhTxt(fc.RH)}` +
-    (fc.derived ? " (calculées depuis 1800\u00a0m, la vallée n'est pas un point de prévision)" : "") +
+    (fc.valley ? ` (${invData.label}, fond de vallée à ${fc.valley}\u00a0m)` : fc.derived ? " (calculées depuis 1800\u00a0m, la vallée n'est pas un point de prévision)" : "") +
     (fc.G != null ? `, variation prévue ${gradTxt(fc.G)} (moyenne de ${fc.n} modèle${fc.n > 1 ? "s" : ""}).` : ".") +
-    (sim.two ? (() => { const f2 = simForecast(sim.alt2); return f2 ? ` À ${sim.alt2}\u00a0m : air ${temp(f2.T)}, humidité ${rhTxt(f2.RH)}${f2.derived ? " (calculées)" : ""}.` : ""; })() : "")
+    (sim.two ? (() => { const f2 = simForecast(sim.alt2); return f2 ? ` À ${sim.alt2}\u00a0m : air ${temp(f2.T)}, humidité ${rhTxt(f2.RH)}${f2.valley ? ` (${invData.label}, ${f2.valley}\u00a0m)` : f2.derived ? " (calculées)" : ""}.` : ""; })() : "")
     : "Appuyez sur « Calculer » pour pouvoir reprendre les prévisions.";
+  const iv = results ? invAt(0) : null;
+  document.getElementById("simInv").innerHTML = !iv ? "" : `<b>${cap(whenTxt(axis[0]))}</b>, d'après ${invData.label} : ${invTxt(iv)}.` +
+    (iv.inv && !sim.two ? ` <button type="button" class="link" id="simInvUse">Simuler avec la vallée en 2ᵉ mesure</button>` : "");
+  document.getElementById("simInv").className = "sim-inv" + (iv && iv.inv ? " on" : "") + (iv ? "" : " hidden");
   saveJSON(STORE_SIMU, sim);
 }
 // prévisions actuelles à 1800 m (et gradient prévu par les modèles qui donnent les températures en altitude)
@@ -2504,6 +2577,9 @@ function simForecast(alt = sim.ref){
   if(!results) return null;
   const gs = isoModels.map(m => { const j = m.time.indexOf(axis[0]); return j >= 0 ? m.grad[j] : null; }).filter(g => g != null);
   const G = gs.length ? mean(gs) : null;
+  // vallée : valeur du fond de vallée d'AROME HD sans correction d'altitude (voit les inversions), si disponible
+  const iv = alt < 1000 ? invAt(0) : null;
+  if(iv) return {T: Math.round(iv.T[0] * 2) / 2, RH: iv.RH[0], G, n: gs.length, derived: false, valley: invData.pts[0].elev};
   let i = ALTS.findIndex(a => a.alt === alt), derived = false;
   if(i < 0){ i = ALTS.findIndex(a => a.alt === SIM_REF); derived = true; }
   const R = results[i];
@@ -2627,6 +2703,7 @@ function showRecap(i){
   }
   if(!calm) why.push(`<b>vent trop fort</b> : ${num(R.W[i], 0)} km/h pour un seuil de ${num(thrW, 0)} km/h`);
   if(cold && R.RH[i] != null && R.RH[i] <= 70 && R.T[i] > thrT) why.push(`l'<b>air sec</b> (${rhTxt(R.RH[i])}) permet de produire même avec un air à ${temp(R.T[i])}`);
+  const iv = invAt(i); if(iv && iv.inv) why.push(`<b>inversion</b> prévue (${num(iv.up)}\u00a0°C de plus en montant, vers ${iv.top}\u00a0m)`);
   if(d.dni[i] > 200) why.push(`<b>soleil</b> (${num(d.dni[i], 0)} W/m²) : les pentes exposées se réchauffent`);
   if(p != null && p >= 0.05) why.push(`${sn ? "<b>neige</b>" : "<b>pluie</b>"} (${num(p)} mm/h)`);
   const ok = R.pct[i] != null && R.pct[i] >= 0.5;
@@ -2885,6 +2962,58 @@ function showWind(i){
     (di >= 0 && d.dayPr[di] != null ? ` · total du jour ${num(d.dayPr[di], 1)} mm` : "");
 }
 
+/* ---------- Graphique des inversions (vallée ↔ station) ---------- */
+const INV_COLS = ["#f0a64b", "#e8c46a", "#8ec5ff", "#6da7ec", "#b7d3f6"];
+let invShow = null;
+function renderInv(){
+  const sec = document.getElementById("secInv");
+  let H = 0; for(let i = 0; i < axis.length; i++) if(invAt(i)) H = i + 1;
+  sec.classList.toggle("hidden", !H);
+  if(!H) return;
+  const P = invData.pts, vals = [];
+  for(let i = 0; i < H; i++){ const r = invAt(i); if(r) vals.push(...r.T); }
+  let tMin = Math.floor(Math.min(...vals) / 2) * 2 - 2, tMax = Math.ceil(Math.max(...vals) / 2) * 2 + 2;
+  const top = 30, plot = 160, y0 = top + plot, hTxtY = y0 + 18, Ht = hTxtY + 6, W = H * CH.step + 4;
+  const y = v => y0 - (v - tMin) / (tMax - tMin) * plot, xc = i => i * CH.step + 1 + CH.bar / 2;
+  const st = tMax - tMin > 16 ? 4 : 2;
+  let s = "";
+  for(let i = 0; i < H; i++){ const r = invAt(i); if(r && r.inv) s += `<rect x="${i * CH.step}" y="${top}" width="${CH.step}" height="${plot}" fill="#ec835a" fill-opacity="${Math.min(.35, .1 + r.up * .06).toFixed(2)}"/>`; }
+  for(let v = tMin; v <= tMax; v += st) s += `<line x1="0" x2="${W}" y1="${y(v)}" y2="${y(v)}" stroke="${v === 0 ? "#5b6c7e" : "#223040"}"/>`;
+  days.forEach(d => { const x = d.idx[0] * CH.step; if(d.idx[0] >= H) return;
+    s += `<line x1="${x+0.5}" x2="${x+0.5}" y1="4" y2="${Ht}" stroke="#2a3846"/>`;
+    if(Math.min(H, d.idx[d.idx.length - 1] + 1) - d.idx[0] >= 8) s += `<text x="${x+4}" y="15" fill="#b3c1d0" font-size="12" font-weight="600">${dayLabel(d.key, true)}</text>`; });
+  for(let i = 0; i < H; i++){ const hr = hourOf(axis[i]); if(hr % 6 === 0 && hr !== 0) s += `<text x="${xc(i)}" y="${hTxtY}" fill="#8597ab" font-size="10" text-anchor="middle">${hr}h</text>`; }
+  P.forEach((p, k) => { let d = "", pen = false;
+    for(let i = 0; i < H; i++){ const r = invAt(i); if(!r){ pen = false; continue; } d += (pen ? "L" : "M") + xc(i).toFixed(1) + "," + y(r.T[k]).toFixed(1); pen = true; }
+    s += `<path d="${d}" fill="none" stroke="${INV_COLS[k % INV_COLS.length]}" stroke-width="${k === 0 ? 2.6 : 2}"/>`; });
+  s += `<rect id="invSel" x="-20" y="${top - 2}" width="${CH.step}" height="${plot + 4}" fill="none" stroke="#e8eef5" stroke-width="1.5" rx="2"/>`;
+  for(let i = 0; i < H; i++) s += `<rect data-i="${i}" x="${i*CH.step}" y="0" width="${CH.step}" height="${Ht}" fill="transparent"/>`;
+  document.getElementById("invScroll").innerHTML = `<svg id="invSvg" width="${W}" height="${Ht}" role="img" aria-label="Température de la vallée à la station, heure par heure">${s}</svg>`;
+  let ax = ""; for(let v = tMin; v <= tMax; v += st) ax += `<text x="30" y="${y(v) + 4}" fill="#8597ab" font-size="10" text-anchor="end">${v > 0 ? "+" + v : String(v).replace("-", "−")}</text>`;
+  ax += `<text x="30" y="${top - 12}" fill="#8597ab" font-size="9" text-anchor="end">°C</text>`;
+  const axEl = document.getElementById("invAxis"); axEl.setAttribute("height", Ht); axEl.innerHTML = ax;
+  document.getElementById("invLegend").innerHTML = P.map((p, k) => `<span><i style="background:${INV_COLS[k % INV_COLS.length]};height:3px;vertical-align:4px"></i>${p.elev} m · ${p.name}</span>`).join("") +
+    `<span><i style="background:rgba(236,131,90,.35);height:10px;vertical-align:-1px"></i>inversion</span>` +
+    `<span class="muted">${invData.label}, altitudes du relief du modèle</span>`;
+  const svg = document.getElementById("invSvg");
+  svg.addEventListener("click", ev => { const i = ev.target.getAttribute("data-i"); if(i != null) showInv(+i); });
+  svg.addEventListener("pointermove", ev => { if(ev.pointerType === "mouse"){ const i = ev.target.getAttribute("data-i"); if(i != null) showInv(+i); } });
+  let first = -1; for(let i = 0; i < H; i++){ const r = invAt(i); if(r && r.inv){ first = i; break; } }
+  showInv(first >= 0 ? first : 0);
+}
+function invTxt(r){
+  // phrase courte sur l'inversion à une heure
+  const P = invData.pts;
+  return r.inv ? `<b style="color:#ec835a">Inversion</b> : jusqu'à ${num(r.up)} °C de plus en montant (vers ${r.top} m) ; de la vallée (${P[0].elev} m) à la station (${P[r.st].elev} m) : ${gradTxt(r.G)}`
+    : `Pas d'inversion : de la vallée (${P[0].elev} m) à la station (${P[r.st].elev} m) : ${gradTxt(r.G)}` + (r.G > -0.4 ? " (baisse faible : air froid en vallée)" : "");
+}
+function showInv(i){
+  const r = invAt(i); if(!r) return;
+  const sel = document.getElementById("invSel"); if(sel) sel.setAttribute("x", i * CH.step);
+  document.getElementById("invInfo").innerHTML = `<b>${cap(whenTxt(axis[i]))}</b> — ${invTxt(r)}<br>` +
+    invData.pts.map((p, k) => `<span style="color:${INV_COLS[k % INV_COLS.length]}">${p.elev} m</span> ${temp(r.T[k])} · 💧 ${rhTxt(r.RH[k])}`).join(" | ");
+}
+
 /* ---------- Choix des modèles ---------- */
 const NO_MODEL_TXT = "Aucun modèle choisi n'a de prévision. Dans l'onglet Réglages › Modèles utilisés, cochez au moins un modèle disponible.";
 function usedModels(){ return models.filter(m => selModels.has(mkey(m.kind, m.id))); }
@@ -3031,6 +3160,13 @@ const INFO = {
     choisie, en vert s'il pleut.</li></ul><p>Elles sont calculées à partir des températures et de l'humidité en altitude de chaque modèle
     (AROME, ARPEGE, ECMWF, ICON, GFS, UKMO) : iso 0 là où la température passe à 0 °C, limite pluie-neige là où la température humide
     passe à +1 °C. Précision d'environ 100 à 300 m. « Moyenne des modèles » montre la moyenne et, en zone claire, l'écart entre modèles.</p>`],
+  inv: ["Inversions : vallée ↔ station", `<p>Les prévisions habituelles des 6 altitudes sont corrigées par Open-Meteo avec un gradient standard
+    (environ −0,65 °C par 100 m) : elles ne peuvent pas montrer d'inversion. Ici, on prend le modèle le plus fin (AROME HD, mailles de 1,3 km ;
+    sinon AROME 2,5 km) <b>sans correction</b>, à 5 points du fond de la vallée de Luchon jusqu'au haut de la station. Les altitudes sont celles du
+    relief du modèle (un peu lissé).</p><ul><li><b>Zone orange</b> : inversion, la température monte d'au moins 0,5 °C en montant (plus c'est
+    foncé, plus elle est forte).</li><li>Le détail donne la température et l'humidité à chaque point, et la variation de la vallée à la station
+    (normale : environ −0,5 à −0,8 °C par 100 m ; plus faible : air froid en vallée).</li></ul><p>Prévision à environ 2 jours (portée d'AROME).
+    Le modèle voit une bonne partie des inversions de vallée, pas toutes.</p>`],
   windPr: ["Vent et précipitations", `<ul><li><b>Vent</b> (ligne blanche, échelle de gauche en km/h) : vent moyen à 10 m du sol à
     l'altitude choisie, moyenne des modèles choisis ; la zone claire contient 8 scénarios sur 10. <b>Au-dessus du trait orange</b> (seuil de
     l'onglet Réglages), la ligne devient orange : vent trop fort pour produire.</li><li><b>Précipitations</b> (barres, échelle bleue en mm/h) :
@@ -3265,6 +3401,12 @@ document.getElementById("tab-simu").addEventListener("click", ev => {
   const st = ev.target.closest("button[data-sim]"), md = ev.target.closest("button[data-simm]");
   if(st){ sim[st.dataset.sim] += parseFloat(st.dataset.d); sim.src = "auto"; renderSimu(); }
   else if(ev.target.closest("#simAuto")){ sim.src = "auto"; renderSimu(); }
+  else if(ev.target.closest("#simInvUse")){
+    // prévisions à la référence + fond de vallée en 2e mesure
+    const fc = simForecast(), fv = simForecast(650);
+    if(fc && fv){ sim.T = fc.T; sim.RH = fc.RH; sim.src = fc.G != null ? "prevu" : "auto"; if(fc.G != null) sim.Gfc = fc.G;
+      if(sim.ref === 650) sim.ref = SIM_REF;
+      sim.two = true; sim.alt2 = 650; sim.T2 = fv.T; sim.RH2 = Math.round(fv.RH); sim.rh2 = true; renderSimu(); } }
   else if(ev.target.closest("button[data-sim2alt]")){ sim.alt2 = +ev.target.closest("button[data-sim2alt]").dataset.sim2alt; renderSimu(); }
   else if(ev.target.closest("[data-simref]")){
     // les valeurs réglées (air, hygrométrie) sont gardées : elles valent désormais pour la nouvelle altitude de référence

@@ -263,8 +263,16 @@ humide ou moins** (et un vent sous le seuil de l'onglet Réglages).
     Une pente face au soleil se réchauffe, une pente à l'ombre se refroidit par rapport aux prévisions (qui valent pour un
     terrain moyen). Ce coefficient est une **estimation** : à ajuster avec des relevés de température sur les pistes.
   - Toucher un canon donne son exposition, sa pente, ses heures de soleil direct du jour (relief seul) et l'effet à l'heure choisie.
-- **Plan** des canons (vert prêt, orange limite −2,5 à −3 °C, gris trop doux) ; toucher un point donne son numéro, son
-  altitude et sa température humide ; **liste des numéros** des canons prêts.
+- **Prêt** = température humide de −3 °C ou moins **et** vent sous le seuil des Réglages **à l'altitude du canon** (vent
+  interpolé entre les points de prévision 1450, 1800, 1900, 2000, 2100 et 2200 m). Le cadre indique combien de canons sont
+  assez froids, combien sont arrêtés par le vent, l'humidité et le vent sur l'ensemble des canons et les précipitations
+  (pluie ou neige selon l'altitude des canons). Barres horaires : hauteur = canons assez froids ; vert = au moins 25 prêts ;
+  orange = le vent empêche le démarrage.
+- **Plan** des canons, avec le choix de la couleur (mémorisé) : **Prêt** (vert prêt, orange froid mais trop de vent, jaune
+  limite −2,5 à −3 °C, gris trop doux), **Humide**, **Air**, **Humidité**, **Vent**, **Soleil** (réchauffé au soleil, refroidi
+  à l'ombre). La légende compte les canons de chaque couleur. Toucher un point donne tout sur le canon : numéro, altitude,
+  air (dont l'effet du soleil), humidité, température humide, vent, exposition et heures de soleil, et la raison (trop doux,
+  avec l'air qu'il faudrait ; vent trop fort) ; **liste des numéros** des canons prêts.
 
 ## Autres sites météo
 

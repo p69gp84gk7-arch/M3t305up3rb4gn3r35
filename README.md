@@ -73,7 +73,7 @@ l'altitude restent en haut. L'onglet ouvert est gardé dans le téléphone.
 |---|---|
 | **Résumé** | Jour par jour, Démarrages possibles |
 | **Calendrier** | Calendrier à 15 jours façon Apple, temps de fonctionnement estimé (une barre par altitude), canons : démarrage de l'installation jour par jour |
-| **Graphiques** | Heure par heure, Diagramme des scénarios |
+| **Graphiques** | Heure par heure, Humidité, Diagramme des scénarios, Iso 0 °C, Vent et précipitations |
 | **Tableaux** | Toutes les altitudes, Par modèle, Modèles indisponibles (avec choix des modèles affichés) |
 | **Simulateur** | Simulateur de température humide, profil de la montagne (650 à 2100 m) |
 | **Réglages** | Réglages des seuils, Modèles utilisés, Comment c'est calculé |
@@ -189,6 +189,18 @@ niveaux 1000, 925, 850, 800, 700, 600 et 500 hPa au-dessus du plateau. L'iso 0 e
 température passe à 0 °C ; la limite pluie-neige est la plus haute altitude où la température humide passe à +1 °C
 (interpolation entre niveaux). Vérifié le 25/11/2026 : l'iso 0 calculé est à moins de 100 m de l'iso 0 fourni par
 GFS et ICON ; la limite pluie-neige est à ±250 m de celle d'ICON-EU. AROME HD ne fournit pas ces niveaux.
+
+## Vent et précipitations
+
+Onglet **Graphiques**, sous l'iso 0 : un graphique combiné heure par heure à l'altitude choisie.
+
+- **Vent** (ligne blanche, échelle de gauche en km/h) : moyenne des modèles choisis, zone claire = 8 scénarios sur 10.
+  Trait orange = seuil de vent des Réglages ; au-dessus, la ligne devient orange (vent trop fort pour produire).
+- **Précipitations** (barres, échelle bleue de droite de l'axe, en mm/h) : moyenne des 6 modèles en altitude (AROME, ARPEGE,
+  ECMWF, ICON, GFS, UKMO), déjà téléchargés pour l'iso 0 (aucun appel en plus). Blanc = neige à l'altitude choisie
+  (limite pluie-neige plus basse), bleu = pluie.
+- En haut de chaque jour : vent maximal et cumul de précipitations. Toucher le graphique donne le détail de l'heure
+  (vent, dispersion, seuil, précipitations, neige ou pluie, cumul du jour).
 
 ## Calendrier à 15 jours
 

@@ -2405,8 +2405,9 @@ function renderRecap(){
     for(let h = 0; h < H; h++){ pr[h] = mean(al.map(a => a.p[h])); snow[h] = mean(al.map(a => a.s[h])); iso0[h] = mean(al.map(a => a.a[h])); } }
   // soleil direct prévu (W/m²) et canons prêts (prévisions à 1800 m)
   const dni = axis.map((t, i) => { const r = sunData && sunData.byKey.get(t); return r ? r.dni : null; });
-  const canN = new Array(H).fill(null), canWind = new Array(H).fill(true);
-  if(typeof canDaySummary === "function") canDaySummary().forEach(d => d.hours.forEach(h => { if(h){ canN[h.i] = h.n; canWind[h.i] = h.wind; } }));
+  // canN : canons assez froids ; canR : canons prêts (si le vent à l'altitude de chaque canon est pris en compte) ; canWind = false si seul le vent empêche
+  const canN = new Array(H).fill(null), canR = new Array(H).fill(null), canWind = new Array(H).fill(true);
+  if(typeof canDaySummary === "function") canDaySummary().forEach(d => d.hours.forEach(h => { if(h){ canN[h.i] = h.n; canR[h.i] = h.nReady != null ? h.nReady : h.n; canWind[h.i] = h.wind; } }));
   // panneaux
   const P = {chance:{y:34, h:14}, temp:{y:58, h:110}, hum:{y:180, h:56}, wind:{y:248, h:64}, can:{y:324, h:14}};
   const hTxtY = P.can.y + P.can.h + 16, Ht = hTxtY + 6, W = H * CH.step + 4;
@@ -2483,7 +2484,7 @@ function renderRecap(){
     `<span>${sw(RC.W)}vent</span><span>${sw("none", 0, `;border-top:2px dashed ${RC.over};border-radius:0;vertical-align:3px`)}seuil de vent ${num(thrW, 0)} km/h</span>` +
     `<span>${sw(RC.rain, 8)}pluie</span><span>${sw("rgba(232,238,245,.6)", 8)}neige</span>` +
     `<span>${sw("#3fc43f", 10)}canons : au moins ${START_N} prêts</span>`;
-  recapData = {pr, snow, iso0, dni, canN, canWind, alt};
+  recapData = {pr, snow, iso0, dni, canN, canR, canWind, alt};
   const svg = document.getElementById("recapSvg");
   svg.addEventListener("click", ev => { const i = ev.target.getAttribute("data-i"); if(i != null) showRecap(+i); });
   svg.addEventListener("pointermove", ev => { if(ev.pointerType === "mouse"){ const i = ev.target.getAttribute("data-i"); if(i != null) showRecap(+i); } });
@@ -2511,7 +2512,7 @@ function showRecap(i){
     (d.dni[i] != null ? ` · ☀ ${num(d.dni[i], 0)} W/m²` : "") + `<br>vent <b>${num(R.W[i], 0)} km/h</b> · ` +
     (p == null ? "précipitations —" : p >= 0.05 ? `${sn ? "neige" : "pluie"} ${num(p)} mm/h` : "pas de précipitations") +
     ` · iso 0 : ${m(d.iso0[i])} · limite pluie-neige : ${m(d.snow[i])}` +
-    (d.canN[i] != null ? `<br>canons prêts (prévisions à 1800 m) : <b style="color:${d.canN[i] >= START_N && d.canWind[i] ? "#3fc43f" : "inherit"}">${d.canN[i]} / ${CANONS.length}</b>${d.canN[i] >= START_N ? (d.canWind[i] ? " → démarrage possible" : " mais vent trop fort") : ` (il en faut ${START_N})`}` : "") +
+    (d.canN[i] != null ? `<br>canons prêts (prévisions à 1800 m) : <b style="color:${d.canN[i] >= START_N && d.canWind[i] ? "#3fc43f" : "inherit"}">${d.canR[i]} / ${CANONS.length}</b>${d.canN[i] >= START_N ? (d.canWind[i] ? " → démarrage possible" : ` (${d.canN[i]} assez froids, mais le vent en arrête trop)`) : ` (il en faut ${START_N})`}` : "") +
     `<div class="why ${ok ? "ok" : "no"}">${ok ? "✔ Conditions favorables" : "✗ Production peu probable"}${why.length ? " — " + why.join(" · ") : ""}</div>`;
 }
 

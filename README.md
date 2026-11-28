@@ -127,12 +127,17 @@ calcul (qui se règle dans Réglages › Modèles utilisés).
 
 Onglet **Simulateur** (fonctionne sans calcul ni connexion) :
 
-- **En haut**, la température humide à **1800 m** (altitude de référence), en grand, colorée selon le niveau, et la
+- **Altitude de référence** au choix : **650 m** (vallée de Luchon), **1450 m** (bas de station), **1800 m** (plateau,
+  par défaut) ou **2100 m** (haut de station). C'est l'altitude où vous lisez l'air et l'hygrométrie (par exemple un
+  thermomètre). Les valeurs réglées sont gardées quand on change d'altitude : elles valent pour la nouvelle référence, et le
+  profil est recalculé à partir d'elle (encadrée sur le schéma). Le choix est mémorisé.
+- **En haut**, la température humide à l'altitude de référence, en grand, colorée selon le niveau, et la
   température de l'air à ne pas dépasser pour atteindre le seuil avec l'hygrométrie choisie.
 - **Curseurs** : température de l'air (sèche) de **−30 à +30 °C** (pas de 0,5 °C) et hygrométrie de **0 à 100 %**
-  (pas de 1 %), avec boutons − / +. Le bouton « Utiliser les prévisions actuelles à 1800 m » reprend l'air, l'humidité et
-  la variation de température prévues pour l'heure en cours (après « Calculer »).
-- **Profil de la montagne** : 650 m (vallée de Luchon), 1450 m (bas de station), 1800 m (plateau, référence) et
+  (pas de 1 %), avec boutons − / +. Le bouton « Utiliser les prévisions actuelles à … m » reprend l'air, l'humidité et
+  la variation de température prévues pour l'heure en cours à l'altitude de référence (après « Calculer ») ; pour 650 m,
+  qui n'est pas un point de prévision, elles sont calculées depuis 1800 m avec la variation prévue.
+- **Profil de la montagne** : 650 m (vallée de Luchon), 1450 m (bas de station), 1800 m (plateau) et
   2100 m (haut de station), avec l'air, l'hygrométrie et la température humide à chaque altitude.
   - Les valeurs (température humide et air) sont écrites sur le schéma, à côté de chaque altitude, et dans la liste.
   - **Variation de la température avec l'altitude** (gradient) : **calculée automatiquement** selon la température et

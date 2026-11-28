@@ -2736,6 +2736,14 @@ const INFO = {
     pour l'altitude choisie.</p><ul><li><b>% au plus haut</b> : les meilleures chances pendant la période.</li><li><b>Au démarrage /
     au plus froid</b> : températures typiques (valeur du milieu des scénarios).</li><li><b>Modèles fins</b> (dans les 48 h) : l'heure
     de démarrage selon AROME HD et les autres modèles précis, avec l'écart par rapport aux ensembles.</li></ul>`],
+  recap: ["Récapitulatif", `<p>Toutes les prévisions à l'altitude choisie, alignées heure par heure pour les croiser :</p><ul>
+    <li><b>Chances</b> : bande colorée, mêmes couleurs que « Heure par heure » (plus c'est clair, plus il y a de scénarios où l'on peut produire). En haut de chaque jour : heures de
+    production probable (au moins 50 %).</li><li><b>Températures</b> : air (orange) et température humide (bleu) ; trait vert = seuil ; zone verte
+    = assez froid.</li><li><b>Humidité</b> (zone turquoise, 0 à 100 %) et <b>soleil direct</b> prévu (zone jaune, 0 à 1000 W/m²).</li>
+    <li><b>Vent</b> (ligne blanche, orange au-dessus du seuil) et <b>précipitations</b> (barres : bleu = pluie, blanc = neige).</li>
+    <li><b>Canons</b> : vert quand au moins 25 canons sont prêts (prévisions à 1800 m, avec le soleil).</li></ul>
+    <p>Touchez une heure : toutes les valeurs s'affichent, avec ce qui empêche de produire (trop doux, vent) ou ce qui aide (air sec), et
+    l'air qu'il faudrait pour atteindre le seuil avec l'humidité prévue.</p>`],
   heure: ["Heure par heure", `<p>Une barre par heure : plus elle est haute et claire, plus les chances de pouvoir produire sont
     grandes. La ligne pointillée marque 50 %.</p><p>En dessous, la ligne verte indique les heures où AROME HD dit oui. Touchez une
     barre pour voir les températures et le vent. Faites glisser pour voir les jours suivants.</p>`],
@@ -2803,14 +2811,6 @@ const INFO = {
     environ <b>+0,4 °C par 100 W/m²</b> en plus (pente face au soleil), ou en moins (à l'ombre), effet réduit par le vent et limité à ±3 °C.
     C'est une estimation, à comparer avec vos relevés. La nuit ou par ciel couvert, pas d'effet. Anneau jaune sur le plan : canon au soleil.</li></ul><p>Positions : fichier des
     canons ; altitudes : relief Copernicus (90 m). Les prévisions utilisent les modèles choisis dans Réglages.</p>`],
-  recap: ["Récapitulatif", `<p>Toutes les prévisions à l'altitude choisie, alignées heure par heure pour les croiser :</p><ul>
-    <li><b>Chances</b> : bande colorée, mêmes couleurs que « Heure par heure » (plus c'est clair, plus il y a de scénarios où l'on peut produire). En haut de chaque jour : heures de
-    production probable (au moins 50 %).</li><li><b>Températures</b> : air (orange) et température humide (bleu) ; trait vert = seuil ; zone verte
-    = assez froid.</li><li><b>Humidité</b> (zone turquoise, 0 à 100 %) et <b>soleil direct</b> prévu (zone jaune, 0 à 1000 W/m²).</li>
-    <li><b>Vent</b> (ligne blanche, orange au-dessus du seuil) et <b>précipitations</b> (barres : bleu = pluie, blanc = neige).</li>
-    <li><b>Canons</b> : vert quand au moins 25 canons sont prêts (prévisions à 1800 m, avec le soleil).</li></ul>
-    <p>Touchez une heure : toutes les valeurs s'affichent, avec ce qui empêche de produire (trop doux, vent) ou ce qui aide (air sec), et
-    l'air qu'il faudrait pour atteindre le seuil avec l'humidité prévue.</p>`],
   simu: ["Simulateur de température humide", `<p>Réglez la température de l'air (dite « sèche ») et l'hygrométrie à 1800 m avec
     les curseurs (ou − / +) : la température humide s'affiche en haut, en couleur selon le niveau (limite, production, excellent),
     par rapport au seuil de l'onglet Réglages.</p><p>La ligne du dessous indique la température de l'air à ne pas dépasser pour
